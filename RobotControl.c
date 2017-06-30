@@ -1959,7 +1959,7 @@ unsigned short RobotControl(struct Robot_Type* Robots, unsigned char RobotsNumbe
 										gRobot[i]->Monitor.CompletedBlockLength = 0;
 										fRSVG[i].Enable = 0;
 										if (Robot_Program[i] == 0) //remove block from ring buffer if in move_blocks mode
-											strcpy(&gRobot[i]->Parameters.Blocks[Buffer[i].MotionPackage[Buffer[i].EXEC_Index].LineNumber],"");
+											strcpy(gRobot[i]->Parameters.Blocks[Buffer[i].MotionPackage[Buffer[i].EXEC_Index].LineNumber],"");
 										float tmpEndSpeed = Buffer[i].MotionPackage[Buffer[i].EXEC_Index_Prev].EndSpeed;
 										float tmpEndAcc = Buffer[i].MotionPackage[Buffer[i].EXEC_Index_Prev].EndAcc;
 										memset(&Buffer[i].MotionPackage[Buffer[i].EXEC_Index],0,sizeof(Buffer[i].MotionPackage[Buffer[i].EXEC_Index]));
@@ -2211,7 +2211,7 @@ unsigned short RobotControl(struct Robot_Type* Robots, unsigned char RobotsNumbe
 												gRobot[i]->Monitor.Halted = 0;
 												fRSVG[i].Enable = 0;
 												if (Robot_Program[i] == 0) //remove block from ring buffer if in move_blocks mode
-													strcpy(&gRobot[i]->Parameters.Blocks[Buffer[i].MotionPackage[Buffer[i].EXEC_Index].LineNumber],"");
+													strcpy(gRobot[i]->Parameters.Blocks[Buffer[i].MotionPackage[Buffer[i].EXEC_Index].LineNumber],"");
 												memset(&Buffer[i].MotionPackage[Buffer[i].EXEC_Index],0,sizeof(Buffer[i].MotionPackage[Buffer[i].EXEC_Index]));
 												Buffer[i].EXEC_Index_Prev = Buffer[i].EXEC_Index;
 												Buffer[i].EXEC_Index++;
@@ -2221,7 +2221,7 @@ unsigned short RobotControl(struct Robot_Type* Robots, unsigned char RobotsNumbe
 										{//movement was completed correctly or aborted but non completed yet -> move on to next block
 											fRSVG[i].Enable = 0;
 											if (Robot_Program[i] == 0) //remove block from ring buffer if in move_blocks mode
-												strcpy(&gRobot[i]->Parameters.Blocks[Buffer[i].MotionPackage[Buffer[i].EXEC_Index].LineNumber],"");
+												strcpy(gRobot[i]->Parameters.Blocks[Buffer[i].MotionPackage[Buffer[i].EXEC_Index].LineNumber],"");
 											float tmpEndSpeed = fRSVG[i].Speed / fRSVG[i].Override; //Buffer[i].MotionPackage[Buffer[i].EXEC_Index].EndSpeed;
 											float tmpEndAcc = fRSVG[i].Acceleration; //SVG output acceleration not affected by override
 											memset(&Buffer[i].MotionPackage[Buffer[i].EXEC_Index],0,sizeof(Buffer[i].MotionPackage[Buffer[i].EXEC_Index]));
@@ -2265,7 +2265,7 @@ unsigned short RobotControl(struct Robot_Type* Robots, unsigned char RobotsNumbe
 										gRobot[i]->Monitor.CompletedBlockLength = 0;
 										fRSVG[i].Enable = 0;
 										if (Robot_Program[i] == 0) //remove block from ring buffer if in move_blocks mode
-											strcpy(&gRobot[i]->Parameters.Blocks[Buffer[i].MotionPackage[Buffer[i].EXEC_Index].LineNumber],"");
+											strcpy(gRobot[i]->Parameters.Blocks[Buffer[i].MotionPackage[Buffer[i].EXEC_Index].LineNumber],"");
 										float tmpEndSpeed = Buffer[i].MotionPackage[Buffer[i].EXEC_Index_Prev].EndSpeed;
 										float tmpEndAcc = Buffer[i].MotionPackage[Buffer[i].EXEC_Index_Prev].EndAcc;
 										memset(&Buffer[i].MotionPackage[Buffer[i].EXEC_Index],0,sizeof(Buffer[i].MotionPackage[Buffer[i].EXEC_Index]));
@@ -2437,7 +2437,7 @@ unsigned short RobotControl(struct Robot_Type* Robots, unsigned char RobotsNumbe
 												gRobot[i]->Monitor.Halted = 0;
 												fRSVG[i].Enable = 0;
 												if (Robot_Program[i] == 0) //remove block from ring buffer if in move_blocks mode
-													strcpy(&gRobot[i]->Parameters.Blocks[Buffer[i].MotionPackage[Buffer[i].EXEC_Index].LineNumber],"");
+													strcpy(gRobot[i]->Parameters.Blocks[Buffer[i].MotionPackage[Buffer[i].EXEC_Index].LineNumber],"");
 												memset(&Buffer[i].MotionPackage[Buffer[i].EXEC_Index],0,sizeof(Buffer[i].MotionPackage[Buffer[i].EXEC_Index]));
 												Buffer[i].EXEC_Index_Prev = Buffer[i].EXEC_Index;
 												Buffer[i].EXEC_Index++;
@@ -2449,7 +2449,7 @@ unsigned short RobotControl(struct Robot_Type* Robots, unsigned char RobotsNumbe
 											float tmpEndSpeed = fRSVG[i].Speed / fRSVG[i].Override; //Buffer[i].MotionPackage[Buffer[i].EXEC_Index].EndSpeed;	
 											float tmpEndAcc = fRSVG[i].Acceleration; //SVG output acceleration not affected by override
 											if (Robot_Program[i] == 0) //remove block from ring buffer if in move_blocks mode
-												strcpy(&gRobot[i]->Parameters.Blocks[Buffer[i].MotionPackage[Buffer[i].EXEC_Index].LineNumber],"");
+												strcpy(gRobot[i]->Parameters.Blocks[Buffer[i].MotionPackage[Buffer[i].EXEC_Index].LineNumber],"");
 											memset(&Buffer[i].MotionPackage[Buffer[i].EXEC_Index],0,sizeof(Buffer[i].MotionPackage[Buffer[i].EXEC_Index]));
 											Buffer[i].MotionPackage[Buffer[i].EXEC_Index].EndSpeed = tmpEndSpeed; //leave end speed for next block to read
 											Buffer[i].MotionPackage[Buffer[i].EXEC_Index].EndAcc = tmpEndAcc; //leave end acceleration for next block to read
@@ -2494,7 +2494,7 @@ unsigned short RobotControl(struct Robot_Type* Robots, unsigned char RobotsNumbe
 										float tmpEndSpeed = Buffer[i].MotionPackage[Buffer[i].EXEC_Index_Prev].EndSpeed;					
 										float tmpEndAcc = Buffer[i].MotionPackage[Buffer[i].EXEC_Index_Prev].EndAcc;					
 										if (Robot_Program[i] == 0) //remove block from ring buffer if in move_blocks mode
-											strcpy(&gRobot[i]->Parameters.Blocks[Buffer[i].MotionPackage[Buffer[i].EXEC_Index].LineNumber],"");
+											strcpy(gRobot[i]->Parameters.Blocks[Buffer[i].MotionPackage[Buffer[i].EXEC_Index].LineNumber],"");
 										memset(&Buffer[i].MotionPackage[Buffer[i].EXEC_Index],0,sizeof(Buffer[i].MotionPackage[Buffer[i].EXEC_Index]));
 										Buffer[i].MotionPackage[Buffer[i].EXEC_Index].EndSpeed = tmpEndSpeed; //leave end speed for next block to read
 										Buffer[i].MotionPackage[Buffer[i].EXEC_Index].EndAcc = tmpEndAcc; //leave end acc for next block to read
@@ -2771,7 +2771,7 @@ unsigned short RobotControl(struct Robot_Type* Robots, unsigned char RobotsNumbe
 												gRobot[i]->Monitor.Halted = 0;
 												fRSVG[i].Enable = 0;
 												if (Robot_Program[i] == 0) //remove block from ring buffer if in move_blocks mode
-													strcpy(&gRobot[i]->Parameters.Blocks[Buffer[i].MotionPackage[Buffer[i].EXEC_Index].LineNumber],"");
+													strcpy(gRobot[i]->Parameters.Blocks[Buffer[i].MotionPackage[Buffer[i].EXEC_Index].LineNumber],"");
 												memset(&Buffer[i].MotionPackage[Buffer[i].EXEC_Index],0,sizeof(Buffer[i].MotionPackage[Buffer[i].EXEC_Index]));
 												Buffer[i].EXEC_Index_Prev = Buffer[i].EXEC_Index;
 												Buffer[i].EXEC_Index++;
@@ -2783,7 +2783,7 @@ unsigned short RobotControl(struct Robot_Type* Robots, unsigned char RobotsNumbe
 											float tmpEndSpeed = fRSVG[i].Speed / fRSVG[i].Override; //Buffer[i].MotionPackage[Buffer[i].EXEC_Index].EndSpeed;	
 											float tmpEndAcc = fRSVG[i].Acceleration; //SVG output acceleration not affected by override
 											if (Robot_Program[i] == 0) //remove block from ring buffer if in move_blocks mode
-												strcpy(&gRobot[i]->Parameters.Blocks[Buffer[i].MotionPackage[Buffer[i].EXEC_Index].LineNumber],"");
+												strcpy(gRobot[i]->Parameters.Blocks[Buffer[i].MotionPackage[Buffer[i].EXEC_Index].LineNumber],"");
 											memset(&Buffer[i].MotionPackage[Buffer[i].EXEC_Index],0,sizeof(Buffer[i].MotionPackage[Buffer[i].EXEC_Index]));
 											Buffer[i].MotionPackage[Buffer[i].EXEC_Index].EndSpeed = tmpEndSpeed; //leave end speed for next block to read
 											Buffer[i].MotionPackage[Buffer[i].EXEC_Index].EndAcc = tmpEndAcc; //leave end acceleration for next block to read
@@ -2849,7 +2849,7 @@ unsigned short RobotControl(struct Robot_Type* Robots, unsigned char RobotsNumbe
 											gRobot[i]->Commands.Continue = 0;
 											gRobot[i]->Monitor.Halted = 0;
 											if (Robot_Program[i] == 0) //remove block from ring buffer if in move_blocks mode
-												strcpy(&gRobot[i]->Parameters.Blocks[Buffer[i].MotionPackage[Buffer[i].EXEC_Index].LineNumber],"");
+												strcpy(gRobot[i]->Parameters.Blocks[Buffer[i].MotionPackage[Buffer[i].EXEC_Index].LineNumber],"");
 											memset(&Buffer[i].MotionPackage[Buffer[i].EXEC_Index],0,sizeof(Buffer[i].MotionPackage[Buffer[i].EXEC_Index]));
 											Buffer[i].EXEC_Index_Prev = Buffer[i].EXEC_Index;
 											Buffer[i].EXEC_Index++;
@@ -2860,7 +2860,7 @@ unsigned short RobotControl(struct Robot_Type* Robots, unsigned char RobotsNumbe
 									else
 									{
 										if (Robot_Program[i] == 0) //remove block from ring buffer if in move_blocks mode
-											strcpy(&gRobot[i]->Parameters.Blocks[Buffer[i].MotionPackage[Buffer[i].EXEC_Index].LineNumber],"");
+											strcpy(gRobot[i]->Parameters.Blocks[Buffer[i].MotionPackage[Buffer[i].EXEC_Index].LineNumber],"");
 										memset(&Buffer[i].MotionPackage[Buffer[i].EXEC_Index],0,sizeof(Buffer[i].MotionPackage[Buffer[i].EXEC_Index]));
 										Buffer[i].EXEC_Index_Prev = Buffer[i].EXEC_Index;
 										Buffer[i].EXEC_Index++;
@@ -2909,7 +2909,7 @@ unsigned short RobotControl(struct Robot_Type* Robots, unsigned char RobotsNumbe
 										gRobot[i]->Commands.Continue = 0;
 										gRobot[i]->Monitor.Halted = 0;
 										if (Robot_Program[i] == 0) //remove block from ring buffer if in move_blocks mode
-											strcpy(&gRobot[i]->Parameters.Blocks[Buffer[i].MotionPackage[Buffer[i].EXEC_Index].LineNumber],"");
+											strcpy(gRobot[i]->Parameters.Blocks[Buffer[i].MotionPackage[Buffer[i].EXEC_Index].LineNumber],"");
 										memset(&Buffer[i].MotionPackage[Buffer[i].EXEC_Index],0,sizeof(Buffer[i].MotionPackage[Buffer[i].EXEC_Index]));
 										Buffer[i].EXEC_Index_Prev = Buffer[i].EXEC_Index;
 										Buffer[i].EXEC_Index++;
@@ -2918,7 +2918,7 @@ unsigned short RobotControl(struct Robot_Type* Robots, unsigned char RobotsNumbe
 								else if (StoppingError[i] == 0)
 								{ //move immediately to next block
 									if (Robot_Program[i] == 0) //remove block from ring buffer if in move_blocks mode
-										strcpy(&gRobot[i]->Parameters.Blocks[Buffer[i].MotionPackage[Buffer[i].EXEC_Index].LineNumber],"");
+										strcpy(gRobot[i]->Parameters.Blocks[Buffer[i].MotionPackage[Buffer[i].EXEC_Index].LineNumber],"");
 									float tmpEndSpeed = Buffer[i].MotionPackage[Buffer[i].EXEC_Index_Prev].EndSpeed;
 									float tmpEndAcc = Buffer[i].MotionPackage[Buffer[i].EXEC_Index_Prev].EndAcc;
 									memset(&Buffer[i].MotionPackage[Buffer[i].EXEC_Index],0,sizeof(Buffer[i].MotionPackage[Buffer[i].EXEC_Index]));
@@ -2976,7 +2976,7 @@ unsigned short RobotControl(struct Robot_Type* Robots, unsigned char RobotsNumbe
 											gRobot[i]->Commands.Continue = 0;
 											gRobot[i]->Monitor.Halted = 0;
 											if (Robot_Program[i] == 0) //remove block from ring buffer if in move_blocks mode
-												strcpy(&gRobot[i]->Parameters.Blocks[Buffer[i].MotionPackage[Buffer[i].EXEC_Index].LineNumber],"");
+												strcpy(gRobot[i]->Parameters.Blocks[Buffer[i].MotionPackage[Buffer[i].EXEC_Index].LineNumber],"");
 											memset(&Buffer[i].MotionPackage[Buffer[i].EXEC_Index],0,sizeof(Buffer[i].MotionPackage[Buffer[i].EXEC_Index]));
 											Buffer[i].EXEC_Index_Prev = Buffer[i].EXEC_Index;
 											Buffer[i].EXEC_Index++;
@@ -2987,7 +2987,7 @@ unsigned short RobotControl(struct Robot_Type* Robots, unsigned char RobotsNumbe
 									else
 									{
 										if (Robot_Program[i] == 0) //remove block from ring buffer if in move_blocks mode
-											strcpy(&gRobot[i]->Parameters.Blocks[Buffer[i].MotionPackage[Buffer[i].EXEC_Index].LineNumber],"");
+											strcpy(gRobot[i]->Parameters.Blocks[Buffer[i].MotionPackage[Buffer[i].EXEC_Index].LineNumber],"");
 										memset(&Buffer[i].MotionPackage[Buffer[i].EXEC_Index],0,sizeof(Buffer[i].MotionPackage[Buffer[i].EXEC_Index]));
 										Buffer[i].EXEC_Index_Prev = Buffer[i].EXEC_Index;
 										Buffer[i].EXEC_Index++;
@@ -3024,7 +3024,7 @@ unsigned short RobotControl(struct Robot_Type* Robots, unsigned char RobotsNumbe
 											gRobot[i]->Commands.Continue = 0;
 											gRobot[i]->Monitor.Halted = 0;
 											if (Robot_Program[i] == 0) //remove block from ring buffer if in move_blocks mode
-												strcpy(&gRobot[i]->Parameters.Blocks[Buffer[i].MotionPackage[Buffer[i].EXEC_Index].LineNumber],"");
+												strcpy(gRobot[i]->Parameters.Blocks[Buffer[i].MotionPackage[Buffer[i].EXEC_Index].LineNumber],"");
 											memset(&Buffer[i].MotionPackage[Buffer[i].EXEC_Index],0,sizeof(Buffer[i].MotionPackage[Buffer[i].EXEC_Index]));
 											Buffer[i].EXEC_Index_Prev = Buffer[i].EXEC_Index;
 											Buffer[i].EXEC_Index++;
@@ -3033,7 +3033,7 @@ unsigned short RobotControl(struct Robot_Type* Robots, unsigned char RobotsNumbe
 									else
 									{
 										if (Robot_Program[i] == 0) //remove block from ring buffer if in move_blocks mode
-											strcpy(&gRobot[i]->Parameters.Blocks[Buffer[i].MotionPackage[Buffer[i].EXEC_Index].LineNumber],"");
+											strcpy(gRobot[i]->Parameters.Blocks[Buffer[i].MotionPackage[Buffer[i].EXEC_Index].LineNumber],"");
 										memset(&Buffer[i].MotionPackage[Buffer[i].EXEC_Index],0,sizeof(Buffer[i].MotionPackage[Buffer[i].EXEC_Index]));
 										Buffer[i].EXEC_Index_Prev = Buffer[i].EXEC_Index;
 										Buffer[i].EXEC_Index++;						
@@ -3070,7 +3070,7 @@ unsigned short RobotControl(struct Robot_Type* Robots, unsigned char RobotsNumbe
 										float tmpEndSpeed = Buffer[i].MotionPackage[Buffer[i].EXEC_Index_Prev].EndSpeed;					
 										float tmpEndAcc = Buffer[i].MotionPackage[Buffer[i].EXEC_Index_Prev].EndAcc;					
 										if (Robot_Program[i] == 0) //remove block from ring buffer if in move_blocks mode
-											strcpy(&gRobot[i]->Parameters.Blocks[Buffer[i].MotionPackage[Buffer[i].EXEC_Index].LineNumber],"");
+											strcpy(gRobot[i]->Parameters.Blocks[Buffer[i].MotionPackage[Buffer[i].EXEC_Index].LineNumber],"");
 										memset(&Buffer[i].MotionPackage[Buffer[i].EXEC_Index],0,sizeof(Buffer[i].MotionPackage[Buffer[i].EXEC_Index]));
 										Buffer[i].MotionPackage[Buffer[i].EXEC_Index].EndSpeed = tmpEndSpeed; //leave end speed for next block to read
 										Buffer[i].MotionPackage[Buffer[i].EXEC_Index].EndAcc = tmpEndAcc; //leave end acc for next block to read
@@ -3238,7 +3238,7 @@ unsigned short RobotControl(struct Robot_Type* Robots, unsigned char RobotsNumbe
 												gRobot[i]->Monitor.Halted = 0;
 												fRSVG[i].Enable = 0;
 												if (Robot_Program[i] == 0) //remove block from ring buffer if in move_blocks mode
-													strcpy(&gRobot[i]->Parameters.Blocks[Buffer[i].MotionPackage[Buffer[i].EXEC_Index].LineNumber],"");
+													strcpy(gRobot[i]->Parameters.Blocks[Buffer[i].MotionPackage[Buffer[i].EXEC_Index].LineNumber],"");
 												memset(&Buffer[i].MotionPackage[Buffer[i].EXEC_Index],0,sizeof(Buffer[i].MotionPackage[Buffer[i].EXEC_Index]));
 												Buffer[i].EXEC_Index_Prev = Buffer[i].EXEC_Index;
 												Buffer[i].EXEC_Index++;
@@ -3248,7 +3248,7 @@ unsigned short RobotControl(struct Robot_Type* Robots, unsigned char RobotsNumbe
 										{//movement was completed correctly or aborted but non completed yet -> move on to next block
 											fRSVG[i].Enable = 0;
 											if (Robot_Program[i] == 0) //remove block from ring buffer if in move_blocks mode
-												strcpy(&gRobot[i]->Parameters.Blocks[Buffer[i].MotionPackage[Buffer[i].EXEC_Index].LineNumber],"");
+												strcpy(gRobot[i]->Parameters.Blocks[Buffer[i].MotionPackage[Buffer[i].EXEC_Index].LineNumber],"");
 											float tmpEndSpeed = fRSVG[i].Speed / fRSVG[i].Override; //Buffer[i].MotionPackage[Buffer[i].EXEC_Index].EndSpeed;					
 											float tmpEndAcc = fRSVG[i].Acceleration; //SVG output acceleration not affected by override
 											memset(&Buffer[i].MotionPackage[Buffer[i].EXEC_Index],0,sizeof(Buffer[i].MotionPackage[Buffer[i].EXEC_Index]));
@@ -3287,7 +3287,7 @@ unsigned short RobotControl(struct Robot_Type* Robots, unsigned char RobotsNumbe
 									int LastLine = Buffer[i].MotionPackage[Buffer[i].EXEC_Index].LineNumber;
 									if (LastLine >= RING_BUFFER_SIZE)
 										LastLine -= RING_BUFFER_SIZE;
-									strcpy(&gRobot[i]->Parameters.Blocks[LastLine],"");
+									strcpy(gRobot[i]->Parameters.Blocks[LastLine],"");
 								}
 								break;
 
