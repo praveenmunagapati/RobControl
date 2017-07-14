@@ -194,37 +194,24 @@ unsigned short EvalCircle(Path_Type *Circle)
 	CrossProduct(Circle->Normal,Circle->StartVersor,&Circle->CrossVersor);	
 	Normalize(&Circle->CrossVersor);
 	
-	// TODO - REMOVE THIS when H is supported!
-	// TODO - user defined rotation angle not supported yet!!!
-	Circle->RotAngle = 0;
-
-	/* calculate arc length */
-	if (Circle->RotAngle != 0)
-	{ //rotation angle defined by user
-		Circle->Length = Circle->Radius * Circle->RotAngle / 180.0f * PI;
-		//TODO - recalculate middle point and end point accordingly (both position and orientation)!
-	}
-	else
-	{ //rotation angle defined by target point
-		float Test[3];
-		CrossProduct(Circle->StartVersor,Circle->EndVersor,&Test);
-		float TempDotProd = DotProduct(Circle->StartVersor,Circle->EndVersor);
-		//argument of acos must be between +/- 1 (avoid numerical errors)
-		if (TempDotProd > 1)
-			TempDotProd = 1;
-		else if (TempDotProd < -1)
-			TempDotProd = -1;
-		Circle->Length = Circle->Radius * acos(TempDotProd);
-		if (sign(Circle->Normal[2])*sign(Test[2]) < 0)
-		{
-			Circle->Length = Circle->Radius * 2.0f * PI - Circle->Length;
-		}
-	}
+	/* calculate arc length to end point */
+    float Test[3];
+    CrossProduct(Circle->StartVersor,Circle->EndVersor,&Test);
+    float TempDotProd = DotProduct(Circle->StartVersor,Circle->EndVersor);
+    //argument of acos must be between +/- 1 (avoid numerical errors)
+    if (TempDotProd > 1)
+        TempDotProd = 1;
+    else if (TempDotProd < -1)
+        TempDotProd = -1;
+    Circle->Length = Circle->Radius * acos(TempDotProd);
+    if (sign(Circle->Normal[2])*sign(Test[2]) < 0)
+    {
+        Circle->Length = Circle->Radius * 2.0f * PI - Circle->Length;
+    }
 	
 	/* calculate arc length to middle point */
-	float Test[3];
 	CrossProduct(Circle->StartVersor,Circle->MiddleVersor,&Test);
-	float TempDotProd = DotProduct(Circle->StartVersor,Circle->MiddleVersor);
+	TempDotProd = DotProduct(Circle->StartVersor,Circle->MiddleVersor);
 	//argument of acos must be between +/- 1 (avoid numerical errors)
 	if (TempDotProd > 1)
 		TempDotProd = 1;
@@ -238,7 +225,7 @@ unsigned short EvalCircle(Path_Type *Circle)
 	
 	if ((Circle->Length <= 0)||(Circle->MiddleLength <= 0))
 		return ERR_PP_CIRCLE_LENGTH;
-	
+	    
 	return 0;
 }
 
@@ -643,6 +630,93 @@ float BezierLengthHalf2(Point_Type P[5], int Size)
 }
 
 
+unsigned short StoppingDistance(float v_max, float a_max, float j_max, float v_act, float a_act, float* stopping_distance)
+{//returns the stopping distance of a movement running at v_act and a_act given the
+    //v_max, a_max and j_max costraints
 
+    //NOTE: assumes positive direction of motion!!!
+    
+    /* check input parameters */
+    if ((v_max<=0)||(a_max<=0)||(j_max<=0)||(v_act<=0))
+    {
+        *stopping_distance = 0;
+        return 255;   
+    }
+    
+    float dt[4],ds[4];
+    float v_top,a_top;
+    
+    if(a_act > TRF_EPSILON)
+    {// movement is accelerating -> need to bring acceleration to zero first
+ 
+        dt[0] = a_act/j_max; 
+        v_top = v_act + 0.5f*a_act*a_act/j_max; //speed reached at the end of the first section
+        
+        dt[2] = v_top/a_max - a_max/j_max;
+        if (dt[2] <= 0) //no linear section
+            a_max = sqrtf(v_top*j_max);
+
+        dt[1] = a_max/j_max;
+        dt[2] = v_top/a_max - a_max/j_max;
+        dt[3] = a_max/j_max;
+        
+        ds[0] = v_act*dt[0] + 0.5f*a_act*dt[0]*dt[0] - j_max*dt[0]*dt[0]*dt[0]/6.0f;
+        ds[1] = v_top*dt[1] - (j_max * dt[1]*dt[1]*dt[1] /6.0f);
+        ds[2] = v_top*dt[2] - (0.5f * a_max *dt[2]*dt[2] + 0.5f * a_max*a_max *dt[2]*dt[2] / j_max);
+        ds[3] = v_top*dt[3] - (- j_max*dt[3]*dt[3]*dt[3]/6.0f + 0.5f * a_max *dt[3]*dt[3] + (v_top-0.5f*a_max*a_max/j_max)*dt[3]);
+ 
+    }
+    else if (a_act < -TRF_EPSILON)
+    {// movement is decelerating already -> find out what deceleration is needed to reach zero
+				
+        dt[0] = 0;
+        a_act = fabs(a_act);
+        v_top = v_act;
+        
+        a_top = sqrtf(j_max*v_act+0.5f*a_act*a_act);
+        if (a_top < a_act)
+            a_top = a_act;
+        if (a_top > a_max)
+            a_top = a_max;
+
+        dt[1] = (a_top-a_act)/j_max;
+        dt[2] = 1/a_top * (v_act -0.5f*a_top*a_top/j_max -a_act*(a_top-a_act)/j_max -0.5f*(a_top-a_act)*(a_top-a_act)/j_max);
+        dt[3] = a_top/j_max;
+
+        float v1 = v_top - (a_act*dt[1] + 0.5f *j_max * dt[1]*dt[1]);
+        float v2 = v1 - a_top*dt[2];
+
+        ds[0] = 0;
+        ds[1] = v_top*dt[1] - (j_max * dt[1]*dt[1]*dt[1] /6.0f)- 0.5f * a_act * dt[1]*dt[1];
+        ds[2] = v1 *dt[2] - (0.5f * a_top *dt[2]*dt[2]);
+        ds[3] = v2 * dt[3] - (-j_max *dt[3]*dt[3]*dt[3] /6.0f + 0.5f * a_top* dt[3]*dt[3]);
+ 
+    }
+    else
+    {// movement is running at constant speed -> decelerate with default acceleration
+			
+        dt[0] = 0;
+        v_top = v_act;
+      
+        dt[2] = v_top/a_max - a_max/j_max;
+        if (dt[2] <= 0) //no linear section
+            a_max = sqrtf(v_top*j_max);
+
+        dt[1] = a_max/j_max;
+        dt[2] = v_top/a_max - a_max/j_max;
+        dt[3] = a_max/j_max;
+  
+        ds[0] = 0;
+        ds[1] = v_top*dt[1] - (j_max * dt[1]*dt[1]*dt[1] /6.0f);
+        ds[2] = v_top*dt[2] - (0.5f * a_max *dt[2]*dt[2] + 0.5f * a_max*a_max *dt[2]*dt[2] / j_max);
+        ds[3] = v_top*dt[3] - (- j_max*dt[3]*dt[3]*dt[3]/6.0f + 0.5f * a_max *dt[3]*dt[3] + (v_top-0.5f*a_max*a_max/j_max)*dt[3]);
+
+    }
+        
+    *stopping_distance = ds[0]+ds[1]+ds[2]+ds[3];
+    
+    return 0;
+    
+}
 
 

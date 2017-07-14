@@ -14,12 +14,18 @@
 #define ERR_SPG_OVERRIDE 1202
 #define ERR_SPG_CYCLETIME 1201
 #define ERR_SPG 1200
-#define ERR_LIMIT_Q6 1186
-#define ERR_LIMIT_Q5 1185
-#define ERR_LIMIT_Q4 1184
-#define ERR_LIMIT_Q3 1183
-#define ERR_LIMIT_Q2 1182
-#define ERR_LIMIT_Q1 1181
+#define ERR_LIMIT_VEL_J6 1192
+#define ERR_LIMIT_VEL_J5 1191
+#define ERR_LIMIT_VEL_J4 1190
+#define ERR_LIMIT_VEL_J3 1189
+#define ERR_LIMIT_VEL_J2 1188
+#define ERR_LIMIT_VEL_J1 1187
+#define ERR_LIMIT_J6 1186
+#define ERR_LIMIT_J5 1185
+#define ERR_LIMIT_J4 1184
+#define ERR_LIMIT_J3 1183
+#define ERR_LIMIT_J2 1182
+#define ERR_LIMIT_J1 1181
 #define ERR_LIMIT_C 1176
 #define ERR_LIMIT_B 1175
 #define ERR_LIMIT_A 1174
@@ -196,7 +202,6 @@ typedef struct Robot_Jog_Type
 	unsigned char Mode;
 	unsigned char AxisIndex;
 	unsigned char Direction;
-	float Feedrate;
 	float GotoPos;
 } Robot_Jog_Type;
 

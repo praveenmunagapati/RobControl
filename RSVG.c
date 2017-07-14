@@ -243,7 +243,10 @@ void RSVG(struct RSVG_Type* inst)
 			
 			inst->Done = 0;
 			inst->State = STATE_STOPPING;	
-			inst->beginSpeed = inst->Speed / override;
+            if (override > 0)
+			    inst->beginSpeed = inst->Speed / override;
+            else
+                inst->beginSpeed = 0;
 			inst->beginAcc = fabs(inst->Acceleration);
 			inst->elapsedTime = 0;
 			
@@ -313,6 +316,7 @@ void RSVG(struct RSVG_Type* inst)
 					inst->v1 = 0;
 					inst->v2 = 0;
 				}	
+                                
 			}
 			else if (inst->Phase > 1)
 			{// movement is decelerating already -> find out what deceleration is needed to reach zero
@@ -366,7 +370,10 @@ void RSVG(struct RSVG_Type* inst)
 		inst->EStop = 0;
 		inst->State = STATE_ESTOPPING;
 		inst->elapsedTime = 0;
-		v = inst->Speed / override; //path speed always positive
+        if (override > 0)
+		    v = inst->Speed / override; //path speed always positive
+        else
+            v = 0;
 		a0 = -inst->DynamicLimits.AccelerationPos; //e-stop acceleration always negative
 		inst->dt[0] = -v/a0;
 	}	
@@ -518,7 +525,14 @@ void RSVG(struct RSVG_Type* inst)
 			inst->Status = 1;	
 			inst->elapsedTime += (cycletime * override);
 						
-			if (inst->elapsedTime > inst->dt[3])
+            //movement already stopped by zero override
+            if (override == 0)
+            {
+                inst->Status = STATUS_OK;
+                inst->Done = 1;
+            }
+
+            if (inst->elapsedTime > inst->dt[3])
 			{//movement completed
 			
 				//used to increase precision in case dt[0] is shorter than one cycle time
@@ -583,7 +597,8 @@ void RSVG(struct RSVG_Type* inst)
 			inst->Position = inst->beginPosition + (inst->ds * inst->moveDirection);
 			
 			//check if movement has completed already but speed has not reached zero yet -> movement must stop in next tangential block!
-			if ((inst->Position >= inst->endPosition)&&(!inst->Done))
+            //moveDirection negative is needed for manual jogging in negative direction! 
+            if ((!inst->Done)&&(((inst->Position >= inst->endPosition)&&(inst->moveDirection > 0))||((inst->Position <= inst->endPosition)&&(inst->moveDirection < 0))))
 			{
 				inst->Status = STATUS_ABORT;
 				inst->Done = 1;				
@@ -598,7 +613,14 @@ void RSVG(struct RSVG_Type* inst)
 
 			inst->Status = 1;
 			inst->elapsedTime += (cycletime * override);
-			
+
+            //movement already stopped by zero override
+            if (override == 0)
+            {
+            inst->Status = STATUS_OK;
+            inst->Done = 1;
+            }
+
 			if (inst->elapsedTime > inst->dt[0])
 			{//movement completed
 				t = inst->dt[0];
@@ -616,8 +638,9 @@ void RSVG(struct RSVG_Type* inst)
 			inst->Position = inst->beginPosition + inst->ds;
 			
 			//check if movement has completed already but speed has not reached zero yet -> movement must stop in next tangential block!
-			if ((inst->Position >= inst->endPosition)&&(!inst->Done))
-			{
+            //moveDirection negative is needed for manual jogging in negative direction! 
+            if ((!inst->Done)&&(((inst->Position >= inst->endPosition)&&(inst->moveDirection > 0))||((inst->Position <= inst->endPosition)&&(inst->moveDirection < 0))))
+            {
 				inst->Status = STATUS_ABORT;
 				inst->Done = 1;				
 			}

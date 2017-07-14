@@ -2,6 +2,7 @@
 #include <string.h>
 #include <math.h>
 #include <stdlib.h>
+#include <AsMem.h>
 #include "PathPlanner.h"
 #include "RSVG.h"
 #include "static.h"
@@ -27,6 +28,10 @@ unsigned short RobotControl(struct Robot_Type* Robots, unsigned char RobotsNumbe
 	unsigned short Circle_Status;
 	unsigned char AxesMoved = 0;
 	
+	//TODO - ECLIPSE remove!!!
+	AsMemPartAlloc_typ AsMemPartAlloc_0;
+	AsMemPartFree_typ AsMemPartFree_0;
+
 	float OldAxesValues[6];
 	float TempAxesValues[6];
 	float TempJointsValues[6];
@@ -77,16 +82,24 @@ unsigned short RobotControl(struct Robot_Type* Robots, unsigned char RobotsNumbe
 		memset(&gRobot[i]->Parameters.Frame[0],0,sizeof(gRobot[i]->Parameters.Frame[0]));
 		
 		/* prevent negative values at path limits */
-		if (gRobot[i]->Parameters.PathLimits.Velocity < 0)
-			gRobot[i]->Parameters.PathLimits.Velocity = 0;
-		if (gRobot[i]->Parameters.PathLimits.Acceleration < 0)
-			gRobot[i]->Parameters.PathLimits.Acceleration = 0;
-		if (gRobot[i]->Parameters.PathLimits.Jerk < 0)
-			gRobot[i]->Parameters.PathLimits.Jerk = 0;
+        if (gRobot[i]->Parameters.PathLimits.Linear.Velocity < 0)
+            gRobot[i]->Parameters.PathLimits.Linear.Velocity = 0;
+        if (gRobot[i]->Parameters.PathLimits.Linear.Acceleration < 0)
+            gRobot[i]->Parameters.PathLimits.Linear.Acceleration = 0;
+        if (gRobot[i]->Parameters.PathLimits.Linear.Jerk < 0)
+            gRobot[i]->Parameters.PathLimits.Linear.Jerk = 0;
+        if (gRobot[i]->Parameters.PathLimits.Angular.Velocity < 0)
+            gRobot[i]->Parameters.PathLimits.Angular.Velocity = 0;
+        if (gRobot[i]->Parameters.PathLimits.Angular.Acceleration < 0)
+            gRobot[i]->Parameters.PathLimits.Angular.Acceleration = 0;
+        if (gRobot[i]->Parameters.PathLimits.Angular.Jerk < 0)
+            gRobot[i]->Parameters.PathLimits.Angular.Jerk = 0;
 		
-		/* prevent user from setting jerk too low */
-		if (gRobot[i]->Parameters.PathLimits.Jerk < gRobot[i]->Parameters.PathLimits.Acceleration)
-			gRobot[i]->Parameters.PathLimits.Jerk = gRobot[i]->Parameters.PathLimits.Acceleration;
+        /* prevent user from setting jerk too low */
+        if (gRobot[i]->Parameters.PathLimits.Linear.Jerk < gRobot[i]->Parameters.PathLimits.Linear.Acceleration)
+            gRobot[i]->Parameters.PathLimits.Linear.Jerk = gRobot[i]->Parameters.PathLimits.Linear.Acceleration;
+        if (gRobot[i]->Parameters.PathLimits.Angular.Jerk < gRobot[i]->Parameters.PathLimits.Angular.Acceleration)
+            gRobot[i]->Parameters.PathLimits.Angular.Jerk = gRobot[i]->Parameters.PathLimits.Angular.Acceleration;
 
 		/* prevent negative values at joint limits and jerk too low */
 		for (k=0;k<gRobot[i]->Monitor.AxesNum;k++)
@@ -113,17 +126,29 @@ unsigned short RobotControl(struct Robot_Type* Robots, unsigned char RobotsNumbe
 		}
 		
 		/* mapp dynamic path limits internally */
-		Robot_Parameter_JointLimits_Type PathLimits;
-		PathLimits.PositionPos = 1e30; //has no meaning 
-		PathLimits.PositionNeg = -1e30; //has no meaning
-		PathLimits.VelocityPos = gRobot[i]->Parameters.PathLimits.Velocity;
-		PathLimits.VelocityNeg = gRobot[i]->Parameters.PathLimits.Velocity; //has no meaning
-		PathLimits.AccelerationPos = gRobot[i]->Parameters.PathLimits.Acceleration;
-		PathLimits.AccelerationNeg = gRobot[i]->Parameters.PathLimits.Acceleration; //has no meaning
-		PathLimits.JerkPos = gRobot[i]->Parameters.PathLimits.Jerk;
-		PathLimits.JerkNeg = gRobot[i]->Parameters.PathLimits.Jerk; //has no meaning
+        /* because the Parameters inteface is different from the SVG interface */
+        Robot_Parameter_JointLimits_Type PathLimits;
+        PathLimits.PositionPos = 1e30; //has no meaning
+        PathLimits.PositionNeg = -1e30; //has no meaning
+        PathLimits.VelocityPos = gRobot[i]->Parameters.PathLimits.Linear.Velocity;
+        PathLimits.VelocityNeg = gRobot[i]->Parameters.PathLimits.Linear.Velocity; //has no meaning
+        PathLimits.AccelerationPos = gRobot[i]->Parameters.PathLimits.Linear.Acceleration;
+        PathLimits.AccelerationNeg = gRobot[i]->Parameters.PathLimits.Linear.Acceleration; //has no meaning
+        PathLimits.JerkPos = gRobot[i]->Parameters.PathLimits.Linear.Jerk;
+        PathLimits.JerkNeg = gRobot[i]->Parameters.PathLimits.Linear.Jerk; //has no meaning
 		
-		/* select number of significant joint axes for this robot */
+        /* these are only used for jogging ABC angles */
+        Robot_Parameter_JointLimits_Type AngularPathLimits;
+        AngularPathLimits.PositionPos = 1e30; //has no meaning
+        AngularPathLimits.PositionNeg = -1e30; //has no meaning
+        AngularPathLimits.VelocityPos = gRobot[i]->Parameters.PathLimits.Angular.Velocity;
+        AngularPathLimits.VelocityNeg = gRobot[i]->Parameters.PathLimits.Angular.Velocity; //has no meaning
+        AngularPathLimits.AccelerationPos = gRobot[i]->Parameters.PathLimits.Angular.Acceleration;
+        AngularPathLimits.AccelerationNeg = gRobot[i]->Parameters.PathLimits.Angular.Acceleration; //has no meaning
+        AngularPathLimits.JerkPos = gRobot[i]->Parameters.PathLimits.Angular.Jerk;
+        AngularPathLimits.JerkNeg = gRobot[i]->Parameters.PathLimits.Angular.Jerk; //has no meaning
+		
+        /* select number of significant joint axes for this robot */
 		if (gRobot[i]->Parameters.Mechanics.Type == CNC)
 		{
 			gRobot[i]->Monitor.AxesNum = 3;
@@ -151,8 +176,8 @@ unsigned short RobotControl(struct Robot_Type* Robots, unsigned char RobotsNumbe
 		{// limit override to max 200%
 			gRobot[i]->Parameters.Override = 200;
 		}
-		if (gRobot[i]->Parameters.Override < 0)
-		{// limit override to min 0%
+		if (gRobot[i]->Parameters.Override < 1)
+		{// limit override to min 0% and do not consider values lower than 1 (because they create numerical issues)
 			gRobot[i]->Parameters.Override = 0;
 		}
 		
@@ -328,7 +353,7 @@ unsigned short RobotControl(struct Robot_Type* Robots, unsigned char RobotsNumbe
 			if ((gRobot[i]->Monitor.State == STANDSTILL_STATE)&&(fRSVG[i].Status == ERR_DISABLED))
 			{
 				//check for jog parameters consistency
-				if (((gRobot[i]->Parameters.Jog.Mode != JOG_JOINTS)&&(gRobot[i]->Parameters.Jog.Mode != JOG_PATHS)&&(gRobot[i]->Parameters.Jog.Mode != JOG_TOOL))
+				if (((gRobot[i]->Parameters.Jog.Mode != JOG_JOINTS)&&(gRobot[i]->Parameters.Jog.Mode != JOG_BASE)&&(gRobot[i]->Parameters.Jog.Mode != JOG_TOOL))
 					||((gRobot[i]->Parameters.Jog.Mode == JOG_TOOL)&&(gRobot[i]->Monitor.AxesNum != 6))
 					||(gRobot[i]->Parameters.Jog.Direction > JOG_GOTO)
 					||(gRobot[i]->Parameters.Jog.AxisIndex > 5)
@@ -346,16 +371,14 @@ unsigned short RobotControl(struct Robot_Type* Robots, unsigned char RobotsNumbe
 					{
 						memcpy(&fRSVG[i].DynamicLimits,&gRobot[i]->Parameters.JointLimits[Jog[i].AxisIndex],sizeof(fRSVG[i].DynamicLimits));
 						memcpy(&fRSVG[i].DynamicValues,&gRobot[i]->Parameters.JointLimits[Jog[i].AxisIndex],sizeof(fRSVG[i].DynamicValues));
-						if (fRSVG[i].DynamicValues.VelocityNeg > Jog[i].Feedrate)
-						{
-							fRSVG[i].DynamicValues.VelocityNeg = Jog[i].Feedrate;							
-						}
-						if (fRSVG[i].DynamicValues.VelocityPos > Jog[i].Feedrate)
-						{
-							fRSVG[i].DynamicValues.VelocityPos = Jog[i].Feedrate;							
-						}
-
-						fRSVG[i].StartPosition = gRobot[i]->Monitor.JointPosition[Jog[i].AxisIndex];
+                        
+                        /* modulate max speed according to set override */
+                        fRSVG[i].DynamicLimits.VelocityPos *= fRSVG[i].Override;
+                        fRSVG[i].DynamicLimits.VelocityNeg *= fRSVG[i].Override;
+                        fRSVG[i].DynamicValues.VelocityPos *= fRSVG[i].Override;
+                        fRSVG[i].DynamicValues.VelocityNeg *= fRSVG[i].Override;
+                        
+                        fRSVG[i].StartPosition = gRobot[i]->Monitor.JointPosition[Jog[i].AxisIndex];
 						
 						if (Jog[i].Direction == JOG_POSITIVE)
 						{
@@ -392,20 +415,27 @@ unsigned short RobotControl(struct Robot_Type* Robots, unsigned char RobotsNumbe
 						}
 					}// end JOG_JOINTS
 
-					else if (Jog[i].Mode == JOG_PATHS)
+					else if (Jog[i].Mode == JOG_BASE)
 					{
-						memcpy(&fRSVG[i].DynamicLimits,&PathLimits,sizeof(fRSVG[i].DynamicLimits));
-						memcpy(&fRSVG[i].DynamicValues,&PathLimits,sizeof(fRSVG[i].DynamicValues));
-						if (fRSVG[i].DynamicValues.VelocityNeg > Jog[i].Feedrate)
-						{
-							fRSVG[i].DynamicValues.VelocityNeg = Jog[i].Feedrate;							
-						}
-						if (fRSVG[i].DynamicValues.VelocityPos > Jog[i].Feedrate)
-						{
-							fRSVG[i].DynamicValues.VelocityPos = Jog[i].Feedrate;							
-						}
-						
-						fRSVG[i].StartPosition = gRobot[i]->Monitor.MountBasePosition[Jog[i].AxisIndex];
+                        /* use linear or angular limits according to what path axis is being jogged */
+                        if (Jog[i].AxisIndex < 3)
+                        {
+                            memcpy(&fRSVG[i].DynamicLimits,&PathLimits,sizeof(fRSVG[i].DynamicLimits));
+                            memcpy(&fRSVG[i].DynamicValues,&PathLimits,sizeof(fRSVG[i].DynamicValues));
+                        }
+                        else
+                        {
+                            memcpy(&fRSVG[i].DynamicLimits,&AngularPathLimits,sizeof(fRSVG[i].DynamicLimits));
+                            memcpy(&fRSVG[i].DynamicValues,&AngularPathLimits,sizeof(fRSVG[i].DynamicValues));                            
+                        }
+                        
+                        /* modulate max speed according to set override */
+                        fRSVG[i].DynamicLimits.VelocityPos *= fRSVG[i].Override;
+                        fRSVG[i].DynamicLimits.VelocityNeg *= fRSVG[i].Override;
+                        fRSVG[i].DynamicValues.VelocityPos *= fRSVG[i].Override;
+                        fRSVG[i].DynamicValues.VelocityNeg *= fRSVG[i].Override;
+                        
+                        fRSVG[i].StartPosition = gRobot[i]->Monitor.MountBasePosition[Jog[i].AxisIndex];
 
 						// no path limits are set when jogging path axes because limits would depend on current tool and orientation of robot axes
 						// the user needs to manually check its limits
@@ -423,22 +453,29 @@ unsigned short RobotControl(struct Robot_Type* Robots, unsigned char RobotsNumbe
 						{
 							fRSVG[i].TargetPosition = Jog[i].GotoPos;
 						}
-					}// end JOG_PATHS
+					}// end JOG_BASE
 
 					else if (Jog[i].Mode == JOG_TOOL)
 					{
-						memcpy(&fRSVG[i].DynamicLimits,&PathLimits,sizeof(fRSVG[i].DynamicLimits));
-						memcpy(&fRSVG[i].DynamicValues,&PathLimits,sizeof(fRSVG[i].DynamicValues));
-						if (fRSVG[i].DynamicValues.VelocityNeg > Jog[i].Feedrate)
-						{
-							fRSVG[i].DynamicValues.VelocityNeg = Jog[i].Feedrate;							
-						}
-						if (fRSVG[i].DynamicValues.VelocityPos > Jog[i].Feedrate)
-						{
-							fRSVG[i].DynamicValues.VelocityPos = Jog[i].Feedrate;							
-						}
-						
-						fRSVG[i].StartPosition = 0;
+                        /* use linear or angular limits according to what path axis is being jogged */
+                        if (Jog[i].AxisIndex < 3)
+                        {
+                            memcpy(&fRSVG[i].DynamicLimits,&PathLimits,sizeof(fRSVG[i].DynamicLimits));
+                            memcpy(&fRSVG[i].DynamicValues,&PathLimits,sizeof(fRSVG[i].DynamicValues));
+                        }
+                        else
+                        {
+                            memcpy(&fRSVG[i].DynamicLimits,&AngularPathLimits,sizeof(fRSVG[i].DynamicLimits));
+                            memcpy(&fRSVG[i].DynamicValues,&AngularPathLimits,sizeof(fRSVG[i].DynamicValues));                            
+                        }
+
+                        /* modulate max speed according to set override */
+                        fRSVG[i].DynamicLimits.VelocityPos *= fRSVG[i].Override;
+                        fRSVG[i].DynamicLimits.VelocityNeg *= fRSVG[i].Override;
+                        fRSVG[i].DynamicValues.VelocityPos *= fRSVG[i].Override;
+                        fRSVG[i].DynamicValues.VelocityNeg *= fRSVG[i].Override;
+                        
+                        fRSVG[i].StartPosition = 0;
 
 						// no path limits are set when jogging path axes because limits would depend on current tool and orientation of robot axes
 						// the user needs to manually check its limits
@@ -473,6 +510,13 @@ unsigned short RobotControl(struct Robot_Type* Robots, unsigned char RobotsNumbe
             gRobot[i]->Commands.Stop = 1;
         }
 		
+        //override set to 100% when jogging, max speed was already reduced when starting movement
+        if(gRobot[i]->Monitor.State == JOGGING)
+        {
+            fRSVG[i].Override = 1.0;
+        }
+        
+        
 		/* run program command */
 		if (gRobot[i]->Commands.RunProgram)
 		{
@@ -499,18 +543,47 @@ unsigned short RobotControl(struct Robot_Type* Robots, unsigned char RobotsNumbe
 				
 				/* dynamically allocate memory for the program string */
 
-				Robot_Program[i] = calloc(strlen(gRobot[i]->Parameters.Program) + 1,sizeof(char));
-
-				if (Robot_Program[i] == 0) { //memory allocation error
+				//BR version
+				memset(&AsMemPartAlloc_0,0,sizeof(AsMemPartAlloc_0));
+				AsMemPartAlloc_0.enable = 1;
+				AsMemPartAlloc_0.ident = gRobot[i]->Parameters.BR_Mem;
+				AsMemPartAlloc_0.len = strlen(gRobot[i]->Parameters.Program) + 1;
+				AsMemPartAlloc(&AsMemPartAlloc_0);
+				if (AsMemPartAlloc_0.mem == 0)
+				{ /* memory allocation problem! */
 					gRobot[i]->Monitor.ActiveError = ERR_FILE_NOMEMORY;
 					gRobot[i]->Monitor.ErrorLine = 0;
-				} else { // copy program string into new memory so that it will not be modified during program execution
-					strcpy(Robot_Program[i], gRobot[i]->Parameters.Program);
-					if (strlen(Robot_Program[i]) == 0) { // empty string
+				}
+				else
+				{
+					Robot_Program[i] = (char*) AsMemPartAlloc_0.mem;
+					memset(Robot_Program[i], '\0', sizeof(Robot_Program[i]));
+					
+					/* copy program string into new memory so that it will not be modified during program execution */				
+					strcpy(Robot_Program[i],gRobot[i]->Parameters.Program);
+								
+					if (strlen(Robot_Program[i]) == 0)
+					{ /* empty string */
 						gRobot[i]->Monitor.ActiveError = ERR_FILE_EMPTY;
 						gRobot[i]->Monitor.ErrorLine = 0;
 					}
 				}
+
+				//ECLIPSE version
+				/*
+				Robot_Program[i] = calloc(strlen(gRobot[i]->Parameters.Program) + 1,sizeof(char));
+
+				if (Robot_Program[i] == 0) { //memory allocation error
+				gRobot[i]->Monitor.ActiveError = ERR_FILE_NOMEMORY;
+				gRobot[i]->Monitor.ErrorLine = 0;
+				} else { // copy program string into new memory so that it will not be modified during program execution
+				strcpy(Robot_Program[i], gRobot[i]->Parameters.Program);
+				if (strlen(Robot_Program[i]) == 0) { // empty string
+				gRobot[i]->Monitor.ActiveError = ERR_FILE_EMPTY;
+				gRobot[i]->Monitor.ErrorLine = 0;
+				}
+				}
+				*/
 				
 				gRobot[i]->Monitor.State = MOVING;
 			}
@@ -545,7 +618,8 @@ unsigned short RobotControl(struct Robot_Type* Robots, unsigned char RobotsNumbe
 			gRobot[i]->Commands.Stop = 0;
 			if ((gRobot[i]->Monitor.State == JOGGING)||(gRobot[i]->Monitor.State == MOVING))
 			{
-				fRSVG[i].Stop = 1;
+                if ((!gRobot[i]->Monitor.Halted)||(HaltedByCmd[i]))
+				    fRSVG[i].Stop = 1;
 				StoppingError[i] = -1;
 			}
 		}
@@ -554,7 +628,7 @@ unsigned short RobotControl(struct Robot_Type* Robots, unsigned char RobotsNumbe
 		if (gRobot[i]->Commands.Halt)
 		{
 			gRobot[i]->Commands.Halt = 0;
-			if (gRobot[i]->Monitor.State == MOVING)
+			if ((gRobot[i]->Monitor.State == MOVING)&&(!gRobot[i]->Monitor.Halted))
 			{
 				HaltedByCmd[i] = 1; //needed to differentiate between halted by command and by single step mode
 				gRobot[i]->Monitor.Halted = 1;
@@ -577,8 +651,8 @@ unsigned short RobotControl(struct Robot_Type* Robots, unsigned char RobotsNumbe
 		/******************** call motion functions ********************/
 
 		RSVG((struct RSVG_Type*)&fRSVG[i]);
-
         
+
         
 		/******************** cyclic workspace monitoring ********************/
 		
@@ -624,13 +698,13 @@ unsigned short RobotControl(struct Robot_Type* Robots, unsigned char RobotsNumbe
 				if ((gRobot[i]->Monitor.JointPosition[k] > gRobot[i]->Parameters.JointLimits[k].PositionPos)||(gRobot[i]->Monitor.JointPosition[k] < gRobot[i]->Parameters.JointLimits[k].PositionNeg))
 				{
 					fRSVG[i].EStop = 1;
-					StoppingError[i] = ERR_LIMIT_Q1 + k;
+					StoppingError[i] = ERR_LIMIT_J1 + k;
 					StoppingLine[i] = gRobot[i]->Monitor.LineNumber;
 				}
 			}							
 		}
 
-		if ((gRobot[i]->Monitor.State == JOGGING)&&((Jog[i].Mode == JOG_PATHS)||(Jog[i].Mode == JOG_TOOL)))
+		if ((gRobot[i]->Monitor.State == JOGGING)&&((Jog[i].Mode == JOG_BASE)||(Jog[i].Mode == JOG_TOOL)))
 		{// do not check limits when jogging joints - user needs to be able to move back to workspace with manual movements
 			for (k=0;k<gRobot[i]->Monitor.AxesNum;k++)
 			{					
@@ -638,7 +712,7 @@ unsigned short RobotControl(struct Robot_Type* Robots, unsigned char RobotsNumbe
 				if ((gRobot[i]->Monitor.JointPosition[k] > gRobot[i]->Parameters.JointLimits[k].PositionPos)||(gRobot[i]->Monitor.JointPosition[k] < gRobot[i]->Parameters.JointLimits[k].PositionNeg))
 				{
 					fRSVG[i].EStop = 1;
-					StoppingError[i] = ERR_LIMIT_Q1 + k;
+					StoppingError[i] = ERR_LIMIT_J1 + k;
 				}
 			}							
 		}
@@ -652,7 +726,7 @@ unsigned short RobotControl(struct Robot_Type* Robots, unsigned char RobotsNumbe
 			gRobot[i]->Monitor.State = ERROR_STATE;
 		}
 			
-			
+        
 			
 		/******************** robot state machine ********************/
 		switch (gRobot[i]->Monitor.State)
@@ -679,7 +753,14 @@ unsigned short RobotControl(struct Robot_Type* Robots, unsigned char RobotsNumbe
 				if (Robot_Program[i] != 0)
 				{ /* free program string memory */
 
-					free(Robot_Program[i]);
+					//BR version
+					AsMemPartFree_0.enable = 1;
+					AsMemPartFree_0.ident = gRobot[i]->Parameters.BR_Mem;
+					AsMemPartFree_0.mem = (unsigned long) Robot_Program[i];
+					AsMemPartFree(&AsMemPartFree_0);
+
+					//ECLIPSE version
+					//free(Robot_Program[i]);
 				
 					Robot_Program[i] = NULL;
 
@@ -733,69 +814,71 @@ unsigned short RobotControl(struct Robot_Type* Robots, unsigned char RobotsNumbe
 						gRobot[i]->Monitor.ErrorLine = 0;
 					}
 				}
-				else if (Jog[i].Mode == JOG_PATHS)
-				{
-					short WorkspaceFlag = 0;
-					float OldPath[6];
-					memcpy(&OldPath,&gRobot[i]->Monitor.MountBasePosition,sizeof(OldPath));
-					memcpy(&OldAxesValues,&gRobot[i]->Monitor.JointPosition,sizeof(OldAxesValues));
+				else if (Jog[i].Mode == JOG_BASE)
+                {
+                    short WorkspaceFlag = 0;
+                    float OldPath[6];
+                    memcpy(&OldPath,&gRobot[i]->Monitor.MountBasePosition,sizeof(OldPath));
+                    memcpy(&OldAxesValues,&gRobot[i]->Monitor.JointPosition,sizeof(OldAxesValues));
 					
-					if ((gRobot[i]->Monitor.AxesNum == 6)&&(Jog[i].AxisIndex >=3))
-					{//orientation of 6ax robot around base axes
-						/*
-						1. calculate R0 from current ABC
-						2. calculate R+ from additive ABC
-						3. endmatrix R1 = R+ x R0
-						4. extract target ABC
-						*/
-						float A_old = gRobot[i]->Monitor.MountBasePosition[3];
-						float B_old = gRobot[i]->Monitor.MountBasePosition[4];
-						float C_old = gRobot[i]->Monitor.MountBasePosition[5];
-						float R_old[3][3];
-						ComposeMatrix(R_old,A_old,B_old,C_old);
-						float R_add[3][3];
-						float A_add = 0;
-						float B_add = 0;
-						float C_add = 0;
-						if (Jog[i].AxisIndex == 3) A_add = fRSVG[i].Position - OldSVGPos[i];
-						if (Jog[i].AxisIndex == 4) B_add = fRSVG[i].Position - OldSVGPos[i];
-						if (Jog[i].AxisIndex == 5) C_add = fRSVG[i].Position - OldSVGPos[i];
-						ComposeMatrix(R_add,A_add,B_add,C_add);
-						float R_new[3][3];
-						MatMult(R_add,R_old,R_new);
-						float A_new, B_new, C_new;
-						DecomposeMatrix(R_new,A_old,B_old,C_old,&A_new,&B_new,&C_new);
-						gRobot[i]->Monitor.MountBasePosition[3] = A_new;
-						gRobot[i]->Monitor.MountBasePosition[4] = B_new;
-						gRobot[i]->Monitor.MountBasePosition[5] = C_new;
-					}
-					else
-					{
-						gRobot[i]->Monitor.MountBasePosition[Jog[i].AxisIndex] = fRSVG[i].Position;
-					}
-					Trf_Status = Transformations(&gRobot[i]->Parameters.Mechanics,TRF_INVERSE,OldAxesValues,gRobot[i]->Monitor.MountBasePosition,gRobot[i]->Monitor.JointPosition);	
-					if (Trf_Status == STATUS_OK)
-					{//make sure joints are within limits
-						for (k=0;k<gRobot[i]->Monitor.AxesNum;k++)
-						{					
-							//check for joint axes limits
-							if ((gRobot[i]->Monitor.JointPosition[k] > gRobot[i]->Parameters.JointLimits[k].PositionPos)||(gRobot[i]->Monitor.JointPosition[k] < gRobot[i]->Parameters.JointLimits[k].PositionNeg))
-							{
-								WorkspaceFlag = 1;
-							}
-						}							
-					}
-					if ((Trf_Status != STATUS_OK)||(WorkspaceFlag))
-					{// ignore movement and reload old position
-						memcpy(&gRobot[i]->Monitor.MountBasePosition,&OldPath,sizeof(gRobot[i]->Monitor.MountBasePosition));
-						memcpy(&gRobot[i]->Monitor.JointPosition,&OldAxesValues,sizeof(gRobot[i]->Monitor.JointPosition));
-						/* we prefer not to activate an error during jogging, stopping the movement is enough
-						gRobot[i]->Monitor.ActiveError = Trf_Status;
-						gRobot[i]->Monitor.ErrorLine = 0;
-						*/
-						gRobot[i]->Monitor.State = STANDSTILL_STATE;
-					}
-				}
+                    if ((gRobot[i]->Monitor.AxesNum == 6)&&(Jog[i].AxisIndex >=3))
+                    {//orientation of 6ax robot around base axes
+                        /*
+                        1. calculate R0 from current ABC
+                        2. calculate R+ from additive ABC
+                        3. endmatrix R1 = R+ x R0
+                        4. extract target ABC
+                        */
+                        float A_old = gRobot[i]->Monitor.MountBasePosition[3];
+                        float B_old = gRobot[i]->Monitor.MountBasePosition[4];
+                        float C_old = gRobot[i]->Monitor.MountBasePosition[5];
+                        float R_old[3][3];
+                        ComposeMatrix(R_old,A_old,B_old,C_old);
+                        float R_add[3][3];
+                        float A_add = 0;
+                        float B_add = 0;
+                        float C_add = 0;
+                        if (Jog[i].AxisIndex == 3) A_add = fRSVG[i].Position - OldSVGPos[i];
+                        if (Jog[i].AxisIndex == 4) B_add = fRSVG[i].Position - OldSVGPos[i];
+                        if (Jog[i].AxisIndex == 5) C_add = fRSVG[i].Position - OldSVGPos[i];
+                        ComposeMatrix(R_add,A_add,B_add,C_add);
+                        float R_new[3][3];
+                        MatMult(R_add,R_old,R_new);
+                        float A_new, B_new, C_new;
+                        DecomposeMatrix(R_new,A_old,B_old,C_old,&A_new,&B_new,&C_new);
+                        gRobot[i]->Monitor.MountBasePosition[3] = A_new;
+                        gRobot[i]->Monitor.MountBasePosition[4] = B_new;
+                        gRobot[i]->Monitor.MountBasePosition[5] = C_new;
+                    }
+                    else
+                    {
+                        gRobot[i]->Monitor.MountBasePosition[Jog[i].AxisIndex] = fRSVG[i].Position;
+                    }
+                    Trf_Status = Transformations(&gRobot[i]->Parameters.Mechanics,TRF_INVERSE,OldAxesValues,gRobot[i]->Monitor.MountBasePosition,gRobot[i]->Monitor.JointPosition);	
+                    if (Trf_Status == STATUS_OK)
+                    {//make sure joints are within limits
+                        for (k=0;k<gRobot[i]->Monitor.AxesNum;k++)
+                        {					
+                            //check for joint axes limits
+                            if ((gRobot[i]->Monitor.JointPosition[k] > gRobot[i]->Parameters.JointLimits[k].PositionPos)||(gRobot[i]->Monitor.JointPosition[k] < gRobot[i]->Parameters.JointLimits[k].PositionNeg))
+                            {
+                                WorkspaceFlag = k+1;
+                            }
+                        }							
+                    }
+                    if ((Trf_Status != STATUS_OK)||(WorkspaceFlag))
+                    {// ignore movement and reload old position
+                        memcpy(&gRobot[i]->Monitor.MountBasePosition,&OldPath,sizeof(gRobot[i]->Monitor.MountBasePosition));
+                        memcpy(&gRobot[i]->Monitor.JointPosition,&OldAxesValues,sizeof(gRobot[i]->Monitor.JointPosition));
+                        if (WorkspaceFlag == 0) gRobot[i]->Monitor.ActiveError = Trf_Status;
+                        else gRobot[i]->Monitor.ActiveError = ERR_LIMIT_J1 + WorkspaceFlag-1;
+                        gRobot[i]->Monitor.ErrorLine = 0;
+                        gRobot[i]->Monitor.State = STANDSTILL_STATE;
+                    }
+                    
+                
+                
+                }
 				else if (Jog[i].Mode == JOG_TOOL)
 				{
 					short WorkspaceFlag = 0;
@@ -825,7 +908,7 @@ unsigned short RobotControl(struct Robot_Type* Robots, unsigned char RobotsNumbe
 							//check for joint axes limits
 							if ((gRobot[i]->Monitor.JointPosition[k] > gRobot[i]->Parameters.JointLimits[k].PositionPos)||(gRobot[i]->Monitor.JointPosition[k] < gRobot[i]->Parameters.JointLimits[k].PositionNeg))
 							{
-								WorkspaceFlag = 1;
+								WorkspaceFlag = k+1;
 							}
 						}							
 					}
@@ -833,12 +916,11 @@ unsigned short RobotControl(struct Robot_Type* Robots, unsigned char RobotsNumbe
 					{// ignore movement and reload old position
 						memcpy(&gRobot[i]->Monitor.MountBasePosition,&OldMount,sizeof(gRobot[i]->Monitor.MountBasePosition));
 						memcpy(&gRobot[i]->Monitor.JointPosition,&OldAxesValues,sizeof(gRobot[i]->Monitor.JointPosition));
-						/* we prefer not to activate an error during jogging, stopping the movement is enough
-						gRobot[i]->Monitor.ActiveError = Trf_Status;
-						gRobot[i]->Monitor.ErrorLine = 0;
-						*/
-						gRobot[i]->Monitor.State = STANDSTILL_STATE;
-					}
+                        if (WorkspaceFlag == 0) gRobot[i]->Monitor.ActiveError = Trf_Status;
+                        else gRobot[i]->Monitor.ActiveError = ERR_LIMIT_J1 + WorkspaceFlag-1;
+                        gRobot[i]->Monitor.ErrorLine = 0;
+                        gRobot[i]->Monitor.State = STANDSTILL_STATE;
+                    }
 				}
 				
 				OldSVGPos[i] = fRSVG[i].Position;
@@ -1114,7 +1196,7 @@ unsigned short RobotControl(struct Robot_Type* Robots, unsigned char RobotsNumbe
 									if ((Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.TargetPointJoint[k] > gRobot[i]->Parameters.JointLimits[k].PositionPos)||(Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.TargetPointJoint[k] < gRobot[i]->Parameters.JointLimits[k].PositionNeg))
 									{
 										fRSVG[i].EStop = 1;
-										StoppingError[i] = ERR_LIMIT_Q1 + k;
+										StoppingError[i] = ERR_LIMIT_J1 + k;
 										StoppingLine[i] = Buffer[i].MotionPackage[Buffer[i].PP_Index].LineNumber;
 										break;
 									}
@@ -1399,7 +1481,7 @@ unsigned short RobotControl(struct Robot_Type* Robots, unsigned char RobotsNumbe
 									if ((Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.TargetPointJoint[k] > gRobot[i]->Parameters.JointLimits[k].PositionPos)||(Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.TargetPointJoint[k] < gRobot[i]->Parameters.JointLimits[k].PositionNeg))
 									{
 										fRSVG[i].EStop = 1;
-										StoppingError[i] = ERR_LIMIT_Q1 + k;
+										StoppingError[i] = ERR_LIMIT_J1 + k;
 										StoppingLine[i] = Buffer[i].MotionPackage[Buffer[i].PP_Index].LineNumber;
 										break;
 									}
@@ -1504,34 +1586,6 @@ unsigned short RobotControl(struct Robot_Type* Robots, unsigned char RobotsNumbe
 									break;
 								}
 						
-								//check that middle point (plus planned tool) does not violate path limits
-								if (gRobot[i]->Monitor.AxesNum < 5)
-								{
-									SubFrame2D(gRobot[i]->Parameters.Tool[Buffer[i].MotionPackage[Buffer[i].PP_Index].Tool].Axes,Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.MiddlePointPath,TempAxesValues);
-								}
-								else
-								{
-									SubFrame3D(gRobot[i]->Parameters.Tool[Buffer[i].MotionPackage[Buffer[i].PP_Index].Tool].Axes,Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.MiddlePointPath,0,0,0,TempAxesValues);
-								}							
-								for (k=0;k<gRobot[i]->Monitor.AxesNum;k++)
-								{	//check for path axes limits only if these are set (max>min)
-									if (((TempAxesValues[k] > gRobot[i]->Parameters.WorkspaceLimits.PositionMax[k])||(TempAxesValues[k] < gRobot[i]->Parameters.WorkspaceLimits.PositionMin[k]))&&(gRobot[i]->Parameters.WorkspaceLimits.PositionMax[k] > gRobot[i]->Parameters.WorkspaceLimits.PositionMin[k]))
-									{
-										fRSVG[i].EStop = 1;
-										StoppingError[i] = ERR_LIMIT_X + k;
-										StoppingLine[i] = Buffer[i].MotionPackage[Buffer[i].PP_Index].LineNumber;
-										break;
-									}
-									//check for joint axes limits								
-									if ((Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.MiddlePointJoint[k] > gRobot[i]->Parameters.JointLimits[k].PositionPos)||(Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.MiddlePointJoint[k] < gRobot[i]->Parameters.JointLimits[k].PositionNeg))
-									{
-										fRSVG[i].EStop = 1;
-										StoppingError[i] = ERR_LIMIT_Q1 + k;
-										StoppingLine[i] = Buffer[i].MotionPackage[Buffer[i].PP_Index].LineNumber;
-										break;
-									}
-								}							
-						
 								/* END POINT */
 								if (gRobot[i]->Parameters.Points[Buffer[i].MotionPackage[Buffer[i].PP_Index].TargetPoint].Mode == POINT_JOINTS)
 								{// POINT_JOINTS
@@ -1576,34 +1630,6 @@ unsigned short RobotControl(struct Robot_Type* Robots, unsigned char RobotsNumbe
 								}
 
 						
-								//check that end point (plus planned tool) does not violate path limits
-								if (gRobot[i]->Monitor.AxesNum < 5)
-								{
-									SubFrame2D(gRobot[i]->Parameters.Tool[Buffer[i].MotionPackage[Buffer[i].PP_Index].Tool].Axes,Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.TargetPointPath,TempAxesValues);
-								}
-								else
-								{
-									SubFrame3D(gRobot[i]->Parameters.Tool[Buffer[i].MotionPackage[Buffer[i].PP_Index].Tool].Axes,Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.TargetPointPath,0,0,0,TempAxesValues);
-								}							
-								for (k=0;k<gRobot[i]->Monitor.AxesNum;k++)
-								{	//check for path axes limits only if these are set (max>min)
-									if (((TempAxesValues[k] > gRobot[i]->Parameters.WorkspaceLimits.PositionMax[k])||(TempAxesValues[k] < gRobot[i]->Parameters.WorkspaceLimits.PositionMin[k]))&&(gRobot[i]->Parameters.WorkspaceLimits.PositionMax[k] > gRobot[i]->Parameters.WorkspaceLimits.PositionMin[k]))
-									{
-										fRSVG[i].EStop = 1;
-										StoppingError[i] = ERR_LIMIT_X + k;
-										StoppingLine[i] = Buffer[i].MotionPackage[Buffer[i].PP_Index].LineNumber;
-										break;
-									}
-									//check for joint axes limits								
-									if ((Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.TargetPointJoint[k] > gRobot[i]->Parameters.JointLimits[k].PositionPos)||(Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.TargetPointJoint[k] < gRobot[i]->Parameters.JointLimits[k].PositionNeg))
-									{
-										fRSVG[i].EStop = 1;
-										StoppingError[i] = ERR_LIMIT_Q1 + k;
-										StoppingLine[i] = Buffer[i].MotionPackage[Buffer[i].PP_Index].LineNumber;
-										break;
-									}
-								}							
-						
 								/* evaluate circle parameters */
 								Circle_Status = EvalCircle(&Buffer[i].MotionPackage[Buffer[i].PP_Index].Path);
 								if (Circle_Status != STATUS_OK)
@@ -1613,7 +1639,187 @@ unsigned short RobotControl(struct Robot_Type* Robots, unsigned char RobotsNumbe
 									StoppingLine[i] = Buffer[i].MotionPackage[Buffer[i].PP_Index].LineNumber;
 									break;								
 								}
+                                
+                                //rotation angle defined by user -> calculate new target point (position and orientation)
+                                if(Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.RotAngle > 0)
+                                {
+                                    //simplify notation
+                                    Path_Type *Circle = &Buffer[i].MotionPackage[Buffer[i].PP_Index].Path;
+                                    
+                                    float tmpMiddlePoint[6], tmpTargetPoint[6];
+                                    memcpy(&tmpTargetPoint,&Circle->TargetPointPath,sizeof(tmpTargetPoint));
+                                    memcpy(&tmpMiddlePoint,&Circle->MiddlePointPath,sizeof(tmpMiddlePoint));
 
+                                    float UserLength = Circle->Radius * Circle->RotAngle / 180.0f * PI;
+  
+                                    //calculate new target point in path world
+                                    float u = UserLength / Circle->Length;
+                                    Circle->uM = Circle->MiddleLength / Circle->Length;
+        
+                                    //POSITION
+                                    for(j=0;j<3;j++)
+                                    {//X,Y,Z on circle
+                                        //P = C + R cos(t) U + R sin(t) V
+                                        tmpTargetPoint[j] = Circle->Center[j] + Circle->Radius * cos(Circle->Length * u / Circle->Radius) * Circle->StartVersor[j] + 
+                                            Circle->Radius * sin(Circle->Length * u / Circle->Radius) * Circle->CrossVersor[j];
+                                        
+                                        if (u <= Circle->uM)
+                                        {
+                                            float tmp_u = u * 0.5;
+                                            tmpMiddlePoint[j] = Circle->Center[j] + Circle->Radius * cos(Circle->Length * tmp_u / Circle->Radius) * Circle->StartVersor[j] + 
+                                                Circle->Radius * sin(Circle->Length * tmp_u / Circle->Radius) * Circle->CrossVersor[j];
+                                        }
+                                    }
+
+                                    //ORIENTATION
+                                    if (gRobot[i]->Monitor.AxesNum != 6)
+                                    {//orientation interpolated linearly
+                                        for(j=3;j<gRobot[i]->Monitor.AxesNum;j++)
+                                        {
+                                            if (u <= Circle->uM)
+                                            {
+                                                float tmp_u = u/Circle->uM;
+                                                tmpTargetPoint[j] = (1-tmp_u) * Circle->StartPointPath[j] + tmp_u * Circle->MiddlePointPath[j];
+                                                    
+                                                tmp_u *= 0.5;
+                                                tmpMiddlePoint[j] = (1-tmp_u) * Circle->StartPointPath[j] + tmp_u * Circle->MiddlePointPath[j];
+                                            }
+                                            else
+                                            {
+                                                float tmp_u = (u-Circle->uM)/(1-Circle->uM);
+                                                tmpTargetPoint[j] = (1-tmp_u) * Circle->MiddlePointPath[j] + tmp_u * Circle->TargetPointPath[j]; //this also works for tmp_u>1
+                                            }
+                                        }
+                                    }
+                                    else
+                                    {//orientation uses quaternions slerp
+                                        
+                                        EulerToQuat(Circle->StartPointPath[3],Circle->StartPointPath[4],Circle->StartPointPath[5], &Circle->StartQuat);
+                                        EulerToQuat(Circle->MiddlePointPath[3],Circle->MiddlePointPath[4],Circle->MiddlePointPath[5], &Circle->MiddleQuat);
+                                        EulerToQuat(Circle->TargetPointPath[3],Circle->TargetPointPath[4],Circle->TargetPointPath[5], &Circle->EndQuat);
+                                        Circle->QuatAngle = AngleBetweenQuat(Circle->StartQuat,&Circle->EndQuat);
+                                        Circle->QuatAngle1 = AngleBetweenQuat(Circle->StartQuat,&Circle->MiddleQuat);
+                                        Circle->QuatAngle2 = AngleBetweenQuat(Circle->MiddleQuat,&Circle->EndQuat);
+
+                                        float tmpA,tmpB,tmpC;
+                                        Quat_Type tmpQuat;
+                                        if (u <= Circle->uM)
+                                        {
+                                            float tmp_u = u/Circle->uM;
+                                            Slerp(Circle->StartQuat,Circle->MiddleQuat,&tmpQuat,Circle->QuatAngle1,tmp_u);
+                                            QuatToEuler(tmpQuat,Circle->TargetPointPath[3],Circle->TargetPointPath[4],Circle->TargetPointPath[5],&tmpA,&tmpB,&tmpC);
+                                            tmpTargetPoint[3] = tmpA;
+                                            tmpTargetPoint[4] = tmpB;
+                                            tmpTargetPoint[5] = tmpC;
+
+                                            tmp_u *= 0.5;
+                                            Slerp(Circle->StartQuat,Circle->MiddleQuat,&tmpQuat,Circle->QuatAngle1,tmp_u);
+                                            QuatToEuler(tmpQuat,Circle->TargetPointPath[3],Circle->TargetPointPath[4],Circle->TargetPointPath[5],&tmpA,&tmpB,&tmpC);
+                                            tmpMiddlePoint[3] = tmpA;
+                                            tmpMiddlePoint[4] = tmpB;
+                                            tmpMiddlePoint[5] = tmpC;
+                                        }
+                                        else
+                                        {
+                                            float tmp_u = (u-Circle->uM)/(1-Circle->uM);
+                                            Slerp(Circle->MiddleQuat,Circle->EndQuat,&tmpQuat,Circle->QuatAngle2,tmp_u); //TODO check if Slerp works with tmp_u>1
+                                            QuatToEuler(tmpQuat,Circle->TargetPointPath[3],Circle->TargetPointPath[4],Circle->TargetPointPath[5],&tmpA,&tmpB,&tmpC);
+                                            tmpTargetPoint[3] = tmpA;
+                                            tmpTargetPoint[4] = tmpB;
+                                            tmpTargetPoint[5] = tmpC;
+                                        }
+                                        
+                                    }                                
+                                
+                                    memcpy(&Circle->TargetPointPath,&tmpTargetPoint,sizeof(Circle->TargetPointPath));
+                                    memcpy(&Circle->MiddlePointPath,&tmpMiddlePoint,sizeof(Circle->MiddlePointPath));
+                                
+                                    //calculate new target point in joint world
+                                    Trf_Status = Transformations(&gRobot[i]->Parameters.Mechanics,TRF_INVERSE,Circle->MiddlePointJoint,Circle->TargetPointPath,Circle->TargetPointJoint);
+                                    if (Trf_Status != STATUS_OK)
+                                    {
+                                        fRSVG[i].EStop = 1;
+                                        StoppingError[i] = Trf_Status;
+                                        StoppingLine[i] = Buffer[i].MotionPackage[Buffer[i].PP_Index].LineNumber;
+                                        break;
+                                    }
+                                
+                                    Circle->Length = UserLength;  
+                                                                                
+                                    if (u <= Circle->uM)
+                                    {
+                                        //calculate new middle point in joint world
+                                        Trf_Status = Transformations(&gRobot[i]->Parameters.Mechanics,TRF_INVERSE,Circle->StartPointJoint,Circle->MiddlePointPath,Circle->MiddlePointJoint);
+                                        if (Trf_Status != STATUS_OK)
+                                        {
+                                            fRSVG[i].EStop = 1;
+                                            StoppingError[i] = Trf_Status;
+                                            StoppingLine[i] = Buffer[i].MotionPackage[Buffer[i].PP_Index].LineNumber;
+                                            break;
+                                        }
+                                
+                                        Circle->MiddleLength = Circle->Length * 0.5;
+                                        
+                                    }
+
+                                }
+
+                                //check that middle point (plus planned tool) does not violate path limits
+                                if (gRobot[i]->Monitor.AxesNum < 5)
+                                {
+                                    SubFrame2D(gRobot[i]->Parameters.Tool[Buffer[i].MotionPackage[Buffer[i].PP_Index].Tool].Axes,Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.MiddlePointPath,TempAxesValues);
+                                }
+                                else
+                                {
+                                    SubFrame3D(gRobot[i]->Parameters.Tool[Buffer[i].MotionPackage[Buffer[i].PP_Index].Tool].Axes,Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.MiddlePointPath,0,0,0,TempAxesValues);
+                                }							
+                                for (k=0;k<gRobot[i]->Monitor.AxesNum;k++)
+                                {	//check for path axes limits only if these are set (max>min)
+                                    if (((TempAxesValues[k] > gRobot[i]->Parameters.WorkspaceLimits.PositionMax[k])||(TempAxesValues[k] < gRobot[i]->Parameters.WorkspaceLimits.PositionMin[k]))&&(gRobot[i]->Parameters.WorkspaceLimits.PositionMax[k] > gRobot[i]->Parameters.WorkspaceLimits.PositionMin[k]))
+                                    {
+                                        fRSVG[i].EStop = 1;
+                                        StoppingError[i] = ERR_LIMIT_X + k;
+                                        StoppingLine[i] = Buffer[i].MotionPackage[Buffer[i].PP_Index].LineNumber;
+                                        break;
+                                    }
+                                    //check for joint axes limits								
+                                    if ((Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.MiddlePointJoint[k] > gRobot[i]->Parameters.JointLimits[k].PositionPos)||(Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.MiddlePointJoint[k] < gRobot[i]->Parameters.JointLimits[k].PositionNeg))
+                                    {
+                                        fRSVG[i].EStop = 1;
+                                        StoppingError[i] = ERR_LIMIT_J1 + k;
+                                        StoppingLine[i] = Buffer[i].MotionPackage[Buffer[i].PP_Index].LineNumber;
+                                        break;
+                                    }
+                                }							
+                                						
+                                //check that end point (plus planned tool) does not violate path limits
+                                if (gRobot[i]->Monitor.AxesNum < 5)
+                                {
+                                    SubFrame2D(gRobot[i]->Parameters.Tool[Buffer[i].MotionPackage[Buffer[i].PP_Index].Tool].Axes,Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.TargetPointPath,TempAxesValues);
+                                }
+                                else
+                                {
+                                    SubFrame3D(gRobot[i]->Parameters.Tool[Buffer[i].MotionPackage[Buffer[i].PP_Index].Tool].Axes,Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.TargetPointPath,0,0,0,TempAxesValues);
+                                }							
+                                for (k=0;k<gRobot[i]->Monitor.AxesNum;k++)
+                                {	//check for path axes limits only if these are set (max>min)
+                                    if (((TempAxesValues[k] > gRobot[i]->Parameters.WorkspaceLimits.PositionMax[k])||(TempAxesValues[k] < gRobot[i]->Parameters.WorkspaceLimits.PositionMin[k]))&&(gRobot[i]->Parameters.WorkspaceLimits.PositionMax[k] > gRobot[i]->Parameters.WorkspaceLimits.PositionMin[k]))
+                                    {
+                                        fRSVG[i].EStop = 1;
+                                        StoppingError[i] = ERR_LIMIT_X + k;
+                                        StoppingLine[i] = Buffer[i].MotionPackage[Buffer[i].PP_Index].LineNumber;
+                                        break;
+                                    }
+                                    //check for joint axes limits								
+                                    if ((Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.TargetPointJoint[k] > gRobot[i]->Parameters.JointLimits[k].PositionPos)||(Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.TargetPointJoint[k] < gRobot[i]->Parameters.JointLimits[k].PositionNeg))
+                                    {
+                                        fRSVG[i].EStop = 1;
+                                        StoppingError[i] = ERR_LIMIT_J1 + k;
+                                        StoppingLine[i] = Buffer[i].MotionPackage[Buffer[i].PP_Index].LineNumber;
+                                        break;
+                                    }
+                                }							                                
+                                
 								//use quaternions for 6ax robots
 								if (gRobot[i]->Monitor.AxesNum == 6)
 								{//convert Euler angles into quaternions and calculate angle between them
@@ -2176,16 +2382,13 @@ unsigned short RobotControl(struct Robot_Type* Robots, unsigned char RobotsNumbe
 									if (gRobot[i]->Monitor.AxesNum == 6)
 									{
 										float u = gRobot[i]->Monitor.CompletedBlockLength / gRobot[i]->Monitor.BlockLength;
-										for(j=3;j<6;j++)
-										{
-											float tmpA,tmpB,tmpC;
-											Quat_Type tmpQuat;
-											Slerp(Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.StartQuat,Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.EndQuat,&tmpQuat,Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.QuatAngle,u);
-											QuatToEuler(tmpQuat,gRobot[i]->Monitor.MountBasePosition[3],gRobot[i]->Monitor.MountBasePosition[4],gRobot[i]->Monitor.MountBasePosition[5],&tmpA,&tmpB,&tmpC);
-											gRobot[i]->Monitor.MountBasePosition[3] = tmpA;
-											gRobot[i]->Monitor.MountBasePosition[4] = tmpB;
-											gRobot[i]->Monitor.MountBasePosition[5] = tmpC;
-										}
+            							float tmpA,tmpB,tmpC;
+            							Quat_Type tmpQuat;
+            							Slerp(Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.StartQuat,Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.EndQuat,&tmpQuat,Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.QuatAngle,u);
+            							QuatToEuler(tmpQuat,gRobot[i]->Monitor.MountBasePosition[3],gRobot[i]->Monitor.MountBasePosition[4],gRobot[i]->Monitor.MountBasePosition[5],&tmpA,&tmpB,&tmpC);
+            							gRobot[i]->Monitor.MountBasePosition[3] = tmpA;
+            							gRobot[i]->Monitor.MountBasePosition[4] = tmpB;
+            							gRobot[i]->Monitor.MountBasePosition[5] = tmpC;
 									}
 									
 									memcpy(&OldAxesValues,&gRobot[i]->Monitor.JointPosition,sizeof(OldAxesValues));
@@ -2675,26 +2878,23 @@ unsigned short RobotControl(struct Robot_Type* Robots, unsigned char RobotsNumbe
 										}
 										else
 										{//orientation uses quaternions slerp								
-											for(j=3;j<6;j++)
-											{
-												float tmpA,tmpB,tmpC;
-												Quat_Type tmpQuat;
-												if (u <= Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.uM)
-												{
-													float tmp_u = u/Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.uM;
-													Slerp(Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.StartQuat,Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.MiddleQuat,&tmpQuat,Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.QuatAngle1,tmp_u);
-												}
-												else
-												{
-													float tmp_u = (u-Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.uM)/(1-Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.uM);	
-													Slerp(Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.MiddleQuat,Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.EndQuat,&tmpQuat,Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.QuatAngle2,tmp_u);
-													
-												}
-												QuatToEuler(tmpQuat,gRobot[i]->Monitor.MountBasePosition[3],gRobot[i]->Monitor.MountBasePosition[4],gRobot[i]->Monitor.MountBasePosition[5],&tmpA,&tmpB,&tmpC);
-												gRobot[i]->Monitor.MountBasePosition[3] = tmpA;
-												gRobot[i]->Monitor.MountBasePosition[4] = tmpB;
-												gRobot[i]->Monitor.MountBasePosition[5] = tmpC;
-											}
+            								float tmpA,tmpB,tmpC;
+            								Quat_Type tmpQuat;
+            								if (u <= Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.uM)
+            								{
+            									float tmp_u = u/Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.uM;
+            									Slerp(Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.StartQuat,Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.MiddleQuat,&tmpQuat,Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.QuatAngle1,tmp_u);
+            								}
+            								else
+            								{
+            									float tmp_u = (u-Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.uM)/(1-Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.uM);	
+            									Slerp(Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.MiddleQuat,Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.EndQuat,&tmpQuat,Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.QuatAngle2,tmp_u);
+            									
+            								}
+            								QuatToEuler(tmpQuat,gRobot[i]->Monitor.MountBasePosition[3],gRobot[i]->Monitor.MountBasePosition[4],gRobot[i]->Monitor.MountBasePosition[5],&tmpA,&tmpB,&tmpC);
+            								gRobot[i]->Monitor.MountBasePosition[3] = tmpA;
+            								gRobot[i]->Monitor.MountBasePosition[4] = tmpB;
+            								gRobot[i]->Monitor.MountBasePosition[5] = tmpC;
 										}
 									}
 									else
@@ -2726,25 +2926,22 @@ unsigned short RobotControl(struct Robot_Type* Robots, unsigned char RobotsNumbe
 										}
 										else
 										{//orientation uses quaternions slerp								
-											for(j=3;j<6;j++)
-											{
-												float tmpA,tmpB,tmpC;
-												Quat_Type tmpQuat;
-												if (u <= Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.uM)
-												{
-													float tmp_u = u/Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.uM;
-													Slerp(Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.StartQuat,Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.MiddleQuat,&tmpQuat,Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.QuatAngle1,tmp_u);
-												}
-												else
-												{
-													float tmp_u = (u-Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.uM)/(1-Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.uM);
-													Slerp(Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.MiddleQuat,Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.EndQuat,&tmpQuat,Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.QuatAngle2,tmp_u);
-												}
-												QuatToEuler(tmpQuat,gRobot[i]->Monitor.MountBasePosition[3],gRobot[i]->Monitor.MountBasePosition[4],gRobot[i]->Monitor.MountBasePosition[5],&tmpA,&tmpB,&tmpC);
-												gRobot[i]->Monitor.MountBasePosition[3] = tmpA;
-												gRobot[i]->Monitor.MountBasePosition[4] = tmpB;
-												gRobot[i]->Monitor.MountBasePosition[5] = tmpC;
-											}
+            								float tmpA,tmpB,tmpC;
+            								Quat_Type tmpQuat;
+            								if (u <= Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.uM)
+            								{
+            									float tmp_u = u/Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.uM;
+            									Slerp(Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.StartQuat,Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.MiddleQuat,&tmpQuat,Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.QuatAngle1,tmp_u);
+            								}
+            								else
+            								{
+            									float tmp_u = (u-Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.uM)/(1-Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.uM);
+            									Slerp(Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.MiddleQuat,Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.EndQuat,&tmpQuat,Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.QuatAngle2,tmp_u);
+            								}
+            								QuatToEuler(tmpQuat,gRobot[i]->Monitor.MountBasePosition[3],gRobot[i]->Monitor.MountBasePosition[4],gRobot[i]->Monitor.MountBasePosition[5],&tmpA,&tmpB,&tmpC);
+            								gRobot[i]->Monitor.MountBasePosition[3] = tmpA;
+            								gRobot[i]->Monitor.MountBasePosition[4] = tmpB;
+            								gRobot[i]->Monitor.MountBasePosition[5] = tmpC;
 										}
 									}
 																		
@@ -3440,7 +3637,7 @@ unsigned short RobotControl(struct Robot_Type* Robots, unsigned char RobotsNumbe
 		else
 		{
 			SubFrame3D(gRobot[i]->Parameters.Tool[gRobot[i]->Monitor.Tool].Axes,gRobot[i]->Monitor.MountBasePosition,gRobot[i]->Monitor.ToolBasePosition[3],gRobot[i]->Monitor.ToolBasePosition[4],gRobot[i]->Monitor.ToolBasePosition[5],gRobot[i]->Monitor.ToolBasePosition);
-		}							
+		}
 		//2. add work frame (this is not base frame!!! - that is added individually in the transformations and is configured in the mechanical parameters)
 		if (gRobot[i]->Monitor.AxesNum < 5)
 		{
@@ -3469,7 +3666,7 @@ unsigned short RobotControl(struct Robot_Type* Robots, unsigned char RobotsNumbe
 			if ((gRobot[i]->Monitor.State != STANDSTILL_STATE)&&(gRobot[i]->Monitor.State != ERROR_STATE)&&((gRobot[i]->Monitor.JointSpeed[k] > gRobot[i]->Parameters.JointLimits[k].VelocityPos * 1.01)||(gRobot[i]->Monitor.JointSpeed[k] < -gRobot[i]->Parameters.JointLimits[k].VelocityNeg * 1.01)))
 			{
 				gRobot[i]->Monitor.JointPosition[k] = OldMonitor[i].JointPosition[k];
-				gRobot[i]->Monitor.ActiveError = ERR_SPG_LIMIT_VEL;
+				gRobot[i]->Monitor.ActiveError = ERR_LIMIT_VEL_J1+k;
 				gRobot[i]->Monitor.ErrorLine = gRobot[i]->Monitor.LineNumber;				
 			}			
 

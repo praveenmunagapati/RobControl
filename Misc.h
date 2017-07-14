@@ -5,7 +5,7 @@
 #include "Frame.h"
 #include <string.h>
 
-/* declaration of miscellaneous datatypes and functions */
+/* declare miscellaneous datatypes and functions */
 
 typedef struct RefPoint_Type
 {	

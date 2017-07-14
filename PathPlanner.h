@@ -26,6 +26,7 @@ unsigned short EvaluateBezier (Point_Type P[5], float u, Point_Type *Q,int Size)
 float BezierLength(Point_Type P[5], int Size);
 float BezierLengthHalf1(Point_Type P[5], int Size);
 float BezierLengthHalf2(Point_Type P[5], int Size);
+unsigned short StoppingDistance(float v_max, float a_max, float j_max, float v_act, float a_act, float *stopping_distance);
 
 
 #endif
