@@ -134,3 +134,120 @@ void GaussianFilter(struct Filter_Type* inst)
 	
 }
 
+
+unsigned short CheckConst()
+{
+    //check all constants
+    unsigned short check = 1;
+    
+    check *=  (STATUS_OK == 0);
+    check *=  (CNC == 0);
+    check *=  (JOG_JOINTS == 0);
+    check *=  (JOG_POSITIVE == 0);
+    check *=  (POINT_PATH == 1);
+    check *=  (SCARA == 1);
+    check *=  (JOG_NEGATIVE == 1);
+    check *=  (JOG_BASE == 1);
+    check *=  (POINT_JOINTS == 0);
+    check *=  (JOG_TOOL == 2);
+    check *=  (JOG_GOTO == 2);
+    check *=  (DELTA == 3);
+    check *=  (PALLETIZER == 4);
+    check *=  (ARM == 6);
+    check *=  (USER == 10);
+    check *=  (MAX_MFUNC == 100);
+    check *=  (MAX_POINT == 200);
+    check *=  (MAX_BLOCK_SIZE == 100);
+    check *=  (MAX_LOOP_COUNT == 100);
+    check *=  (MAX_FRAME == 20);
+    check *=  (MAX_TOOL == 20);
+    check *=  (MAX_ERR == 20);
+    check *=  (MAX_MFUNC_INLINE == 10);
+    check *=  (MAX_ROBOTS == 8);
+    check *=  (MAX_PRG_SIZE == 10000);
+    check *=  (BUFFER_LENGTH == 20);
+    check *=  (RING_BUFFER_SIZE == 100);
+    check *=  (TRF_POSE_BACK == 4);
+    check *=  (TRF_POSE_CONCAVE == 2);
+    check *=  (TRF_POSE_CONVEX == 0);
+    check *=  (TRF_POSE_LEFT == 1);
+    check *=  (TRF_POSE_RIGHT == 0);
+    check *=  (TRF_INVERSE == 1);
+    check *=  (TRF_DIRECT == 0);
+    check *=  (TRF_POSE_FRONT == 0);
+    check *=  (ERR_DISABLED == 99);
+    check *=  (ERR_CYCLETIME == 1005);
+    check *=  (ERR_CHECKSUM == 1006);
+    check *=  (ERR_MAX_ROBOTS == 1010);
+    check *=  (ERR_ROBOT_LICENSE == 1011);
+    check *=  (ERR_JOG_PAR == 1012);
+    check *=  (ERR_JOG_GOTOPOS == 1013);
+    check *=  (ERR_WRONG_JOINT_LIMITS == 1014);
+    check *=  (ERR_UNITS_SCALING == 1015);
+    check *=  (ERR_POINT_TYPE == 1016);
+    check *=  (ERR_TRF_MODE == 1020);
+    check *=  (ERR_TRF_MECH == 1021);
+    check *=  (ERR_TRF_WORKSPACE == 1022);
+    check *=  (ERR_TRF_MECH_NOT_SUPPORTED == 1023);
+    check *=  (ERR_TRF_POSE == 1024);
+    check *=  (ERR_TRF_POINTER == 1025);
+    check *=  (ERR_TRF_AXESNUM == 1026);
+    check *=  (ERR_NOT_SUPPORTED == 1050);
+    check *=  (ERR_FILE_NOT_FOUND == 1051);
+    check *=  (ERR_FILE_EMPTY == 1052);
+    check *=  (ERR_FILE_END == 1053);
+    check *=  (ERR_FILE_NOMEMORY == 1054);
+    check *=  (ERR_IP_EMPTYSTRING == 1100);
+    check *=  (ERR_IP_COMMENT == 1101);
+    check *=  (ERR_IP_SYNTAX == 1102);
+    check *=  (ERR_IP_CONFLICT == 1103);
+    check *=  (ERR_IP_NOPOINT == 1104);
+    check *=  (ERR_IP_NOCENTER == 1105);
+    check *=  (ERR_IP_MAXMFUNC == 1106);
+    check *=  (ERR_IP_POINTINDEX == 1107);
+    check *=  (ERR_IP_TOOLINDEX == 1108);
+    check *=  (ERR_IP_FRAMEINDEX == 1109);
+    check *=  (ERR_IP_MFUNCINDEX == 1110);
+    check *=  (ERR_IP_FEEDRATE == 1111);
+    check *=  (ERR_IP_NOBLOCKS == 1112);
+    check *=  (ERR_IP_LABEL == 1113);
+    check *=  (ERR_IP_TRK_INDEX == 1114);
+    check *=  (ERR_IP_JUMP == 1115);
+    check *=  (ERR_IP_SUBLEVEL == 1116);
+    check *=  (ERR_PP_CIRCLEPOINTS == 1150);
+    check *=  (ERR_PP_CIRCLE_LENGTH == 1151);
+    check *=  (ERR_PP_CIRCLE_MIDDLEPOINT == 1152);
+    check *=  (ERR_LIMIT_X == 1171);
+    check *=  (ERR_LIMIT_Y == 1172);
+    check *=  (ERR_LIMIT_Z == 1173);
+    check *=  (ERR_LIMIT_A == 1174);
+    check *=  (ERR_LIMIT_B == 1175);
+    check *=  (ERR_LIMIT_C == 1176);
+    check *=  (ERR_LIMIT_J1 == 1181);
+    check *=  (ERR_LIMIT_J2 == 1182);
+    check *=  (ERR_LIMIT_J3 == 1183);
+    check *=  (ERR_LIMIT_J4 == 1184);
+    check *=  (ERR_LIMIT_J5 == 1185);
+    check *=  (ERR_LIMIT_J6 == 1186);
+    check *=  (ERR_LIMIT_VEL_J1 == 1187);
+    check *=  (ERR_LIMIT_VEL_J2 == 1188);
+    check *=  (ERR_LIMIT_VEL_J3 == 1189);
+    check *=  (ERR_LIMIT_VEL_J4 == 1190);
+    check *=  (ERR_LIMIT_VEL_J5 == 1191);
+    check *=  (ERR_LIMIT_VEL_J6 == 1192);
+    check *=  (ERR_SPG == 1200);
+    check *=  (ERR_SPG_CYCLETIME == 1201);
+    check *=  (ERR_SPG_OVERRIDE == 1202);
+    check *=  (ERR_SPG_LIMITS_REACHED == 1203);
+    check *=  (ERR_SPG_DYNCALC == 1204);
+    check *=  (ERR_SPG_LIMIT_POS == 1205);
+    check *=  (ERR_SPG_LIMIT_VEL == 1206);
+    check *=  (ERR_SPG_LIMIT_ACC == 1207);
+    check *=  (ERR_SPG_LIMIT_JERK == 1208);
+    check *=  (ERR_TRK1 == 1250);
+    check *=  (ERR_TRK2 == 1251);
+    check *=  (ERR_OPTMOT == 1260);
+
+    return check;
+    
+}

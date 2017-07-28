@@ -117,5 +117,6 @@ unsigned short LineFromString(char* s, char* line, unsigned long linenumber);
 float RoundToEpsilon(float Value);	
 void MovingAverageFilter(struct Filter_Type* inst);
 void GaussianFilter(struct Filter_Type* inst);
+unsigned short CheckConst();
 
 #endif

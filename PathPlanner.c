@@ -720,3 +720,35 @@ unsigned short StoppingDistance(float v_max, float a_max, float j_max, float v_a
 }
 
 
+unsigned short DynamicLimitsViolated(float P1[6], float P2[6], int Size, struct Robot_Parameter_JointLimits_Type Limit[6], float CycleTime, float *redFactor)
+{ //checks if the dynamic limits of the joints are being violated during the current cycle time
+    int k;
+    *redFactor = 1.0;
+   
+    for(k=0;k<Size;k++)
+    {
+        float JointSpeed = (P2[k]-P1[k]) / CycleTime;
+        if (JointSpeed != 0)
+        {
+            if (JointSpeed > Limit[k].VelocityPos)
+            {
+                *redFactor = Limit[k].VelocityPos / JointSpeed;
+                return 1;
+            }
+            if (JointSpeed < -Limit[k].VelocityNeg)
+            {
+                *redFactor = -Limit[k].VelocityNeg / JointSpeed;
+                return 1;
+            }
+        }
+    }
+	
+    return 0;
+   
+
+}
+
+
+
+
+

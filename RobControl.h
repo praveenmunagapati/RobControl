@@ -1,8 +1,9 @@
 #ifndef ROB_CONTROL_H
 #define ROB_CONTROL_H
 
-/* Declaration of global constants, datatypes and functions for the RobControl library */
+/* Declaration of global constants, datatypes and functions for the RobControl library */ 
 
+#define ERR_OPTMOT 1260
 #define ERR_TRK2 1251
 #define ERR_TRK1 1250
 #define ERR_SPG_LIMIT_JERK 1208
@@ -71,6 +72,7 @@
 #define ERR_JOG_PAR 1012
 #define ERR_ROBOT_LICENSE 1011
 #define ERR_MAX_ROBOTS 1010
+#define ERR_CHECKSUM 1006
 #define ERR_CYCLETIME 1005
 #define ERR_DISABLED 99
 #define TRF_POSE_FRONT 0
@@ -100,7 +102,7 @@
 #define JOG_GOTO 2
 #define JOG_TOOL 2
 #define POINT_JOINTS 0
-#define JOG_PATHS 1
+#define JOG_BASE 1
 #define JOG_NEGATIVE 1
 #define SCARA 1
 #define POINT_PATH 1
@@ -111,16 +113,14 @@
 
 
 typedef enum Robot_Monitor_State_Type
-{
-	STANDSTILL_STATE = 0,
+{	STANDSTILL_STATE = 0,
 	JOGGING = 10,
 	MOVING = 20,
 	ERROR_STATE = 255
 } Robot_Monitor_State_Type;
 
 typedef struct Robot_Command_Type
-{
-	unsigned short RunProgram;
+{	unsigned short RunProgram;
 	unsigned short RunBlocks;
 	unsigned short Stop;
 	unsigned short Halt;
@@ -131,8 +131,7 @@ typedef struct Robot_Command_Type
 } Robot_Command_Type;
 
 typedef struct Robot_Parameter_JointLimits_Type
-{
-	float PositionPos;
+{	float PositionPos;
 	float PositionNeg;
 	float VelocityPos;
 	float VelocityNeg;
@@ -143,78 +142,72 @@ typedef struct Robot_Parameter_JointLimits_Type
 } Robot_Parameter_JointLimits_Type;
 
 typedef struct Robot_Parameter_PathLimits_Type
-{
-	float Velocity;
+{	float Velocity;
 	float Acceleration;
 	float Jerk;
 } Robot_Parameter_PathLimits_Type;
 
+typedef struct Robot_Parameter_Path_Type
+{	struct Robot_Parameter_PathLimits_Type Linear;
+	struct Robot_Parameter_PathLimits_Type Angular;
+} Robot_Parameter_Path_Type;
+
 typedef struct Robot_Parameter_Workspace_Type
-{
-	float PositionMax[6];
+{	float PositionMax[6];
 	float PositionMin[6];
 } Robot_Parameter_Workspace_Type;
 
 typedef struct Robot_Parameter_UnitsRatio_Type
-{
-	unsigned long MotorUnits;
+{	unsigned long MotorUnits;
 	unsigned long AxisUnits;
 	signed char Direction;
 	signed long HomeOffset;
 } Robot_Parameter_UnitsRatio_Type;
 
 typedef struct Coord_Type
-{
-	float X;
+{	float X;
 	float Y;
 	float Z;
 } Coord_Type;
 
 typedef struct Link_Type
-{
-	struct Coord_Type Offset;
+{	struct Coord_Type Offset;
 	struct Coord_Type Rotation;
 } Link_Type;
 
 typedef struct UserTrf_Type
-{
-	unsigned char AxesNum;
+{	unsigned char AxesNum;
 	unsigned long Direct;
 	unsigned long Inverse;
 } UserTrf_Type;
 
 typedef struct Mech_Type
-{
-	unsigned char Type;
+{	unsigned char Type;
 	struct Link_Type Links[6];
 	float Coupling[6];
 	struct UserTrf_Type UserTrf;
 } Mech_Type;
 
 typedef struct Point_Type
-{
-	float Axes[6];
+{	float Axes[6];
 	unsigned char Mode;
 } Point_Type;
 
 typedef struct Robot_Jog_Type
-{
-	unsigned char Mode;
+{	unsigned char Mode;
 	unsigned char AxisIndex;
 	unsigned char Direction;
 	float GotoPos;
 } Robot_Jog_Type;
 
 typedef struct Robot_Parameter_Conveyor_Type
-{
-	float Angle;
+{	float Angle;
 	float Position;
 } Robot_Parameter_Conveyor_Type;
 
 typedef struct Robot_Parameter_Type
-{
-	struct Robot_Parameter_JointLimits_Type JointLimits[6];
-	struct Robot_Parameter_PathLimits_Type PathLimits;
+{	struct Robot_Parameter_JointLimits_Type JointLimits[6];
+	struct Robot_Parameter_Path_Type PathLimits;
 	struct Robot_Parameter_Workspace_Type WorkspaceLimits;
 	struct Robot_Parameter_UnitsRatio_Type UnitsRatio[6];
 	struct Mech_Type Mechanics;
@@ -237,8 +230,7 @@ typedef struct Robot_Parameter_Type
 } Robot_Parameter_Type;
 
 typedef struct Robot_Monitor_Type
-{
-	unsigned long Handle;
+{	unsigned long Handle;
 	unsigned char AxesNum;
 	unsigned short Moving;
 	unsigned short Halted;
@@ -265,8 +257,7 @@ typedef struct Robot_Monitor_Type
 } Robot_Monitor_Type;
 
 typedef struct Robot_Type
-{
-	struct Robot_Command_Type Commands;
+{	struct Robot_Command_Type Commands;
 	struct Robot_Parameter_Type Parameters;
 	struct Robot_Monitor_Type Monitor;
 } Robot_Type;
@@ -275,8 +266,5 @@ typedef struct Robot_Type
 
 unsigned short RobotControl(struct Robot_Type* Robots, unsigned char RobotsNumber);
 
-
-#endif
-
-
+#endif 
 

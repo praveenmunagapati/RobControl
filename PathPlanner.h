@@ -27,7 +27,7 @@ float BezierLength(Point_Type P[5], int Size);
 float BezierLengthHalf1(Point_Type P[5], int Size);
 float BezierLengthHalf2(Point_Type P[5], int Size);
 unsigned short StoppingDistance(float v_max, float a_max, float j_max, float v_act, float a_act, float *stopping_distance);
-
+unsigned short DynamicLimitsViolated(float P1[6], float P2[6], int Size, struct Robot_Parameter_JointLimits_Type Limit[6], float CycleTime, float *redFactor);
 
 #endif
 

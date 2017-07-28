@@ -25,6 +25,8 @@ static struct Filter_Type Filter[MAX_ROBOTS][6];
 static short StoppingError[MAX_ROBOTS];
 static long StoppingLine[MAX_ROBOTS];
 static char* Robot_Program[MAX_ROBOTS];
-unsigned long EvaluationTime;
+static unsigned long EvaluationTime;
+static float RedFactor[MAX_ROBOTS];
+static unsigned short CheckConstDone;
 
 #endif
