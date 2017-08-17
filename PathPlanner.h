@@ -22,10 +22,10 @@ unsigned short Normalize(float (*V)[3]);
 unsigned short EvalCircle(Path_Type *Circle);
 unsigned short MaxBlockSpeed(float d, float a, float j, float v_end, float *v_max);
 unsigned short MaxMovementDynamics(float d, float a, float j, float v, float v_start, float v_end, float a_start, float *v_max, float *a_up_max, float *a_down_max, float *d_linear);
-unsigned short EvaluateBezier (Point_Type P[5], float u, Point_Type *Q,int Size);
-float BezierLength(Point_Type P[5], int Size);
-float BezierLengthHalf1(Point_Type P[5], int Size);
-float BezierLengthHalf2(Point_Type P[5], int Size);
+unsigned short EvaluateBezier (Point_Type P[5], float u, Point_Type *Q,int Size, int Order);
+float BezierLength(Point_Type P[5], int Size, int Order);
+float BezierLengthHalf1(Point_Type P[5], int Size, int Order);
+float BezierLengthHalf2(Point_Type P[5], int Size, int Order);
 unsigned short StoppingDistance(float v_max, float a_max, float j_max, float v_act, float a_act, float *stopping_distance);
 unsigned short DynamicLimitsViolated(float P1[6], float P2[6], int Size, struct Robot_Parameter_JointLimits_Type Limit[6], float CycleTime, float *redFactor);
 

@@ -153,15 +153,23 @@ unsigned short Interpreter(char* Block, MotionPackage_Type* Package)
 		Package->MovementType = MOVE_PTP;
 	}
 
-	/* look for Move Circle */
-	strMovement = my_strcasestr(Block,"MC ");
-	if (strMovement != 0)
-	{
-		if (Package->MovementType != MOVE_UNDEF) return ERR_IP_CONFLICT;
-		Package->MovementType = MOVE_CIRCLE;		
-	}
+    /* look for Move Circle */
+    strMovement = my_strcasestr(Block,"MC ");
+    if (strMovement != 0)
+    {
+        if (Package->MovementType != MOVE_UNDEF) return ERR_IP_CONFLICT;
+        Package->MovementType = MOVE_CIRCLE;		
+    }
 
-	/* look for Move HOME */
+    /* look for Move Spline */
+    strMovement = my_strcasestr(Block,"MS ");
+    if (strMovement != 0)
+    {
+        if (Package->MovementType != MOVE_UNDEF) return ERR_IP_CONFLICT;
+        Package->MovementType = MOVE_SPLINE;		
+    }
+
+    /* look for Move HOME */
 	strMovement = my_strcasestr(Block,"HOME ");
 	if (strMovement != 0)
 	{
@@ -188,7 +196,7 @@ unsigned short Interpreter(char* Block, MotionPackage_Type* Package)
 			return ERR_IP_POINTINDEX;
 		}
 	}
-	else if ((Package->MovementType == MOVE_LINE)||(Package->MovementType == MOVE_PTP)||(Package->MovementType == MOVE_CIRCLE))
+	else if ((Package->MovementType == MOVE_LINE)||(Package->MovementType == MOVE_PTP)||(Package->MovementType == MOVE_CIRCLE)||(Package->MovementType == MOVE_SPLINE))
 	{
 		return ERR_IP_NOPOINT;
 	}		

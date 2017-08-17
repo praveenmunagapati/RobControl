@@ -534,11 +534,11 @@ unsigned short MaxMovementDynamics(float d, float a, float j, float v, float v_s
 }
 
 
-unsigned short EvaluateBezier (Point_Type P[5], float u, Point_Type *Q,int Size)
+unsigned short EvaluateBezier (Point_Type P[5], float u, Point_Type *Q,int Size,int Order)
 {// input are Bezier control points P0..P4, time u and size of coordinate system (number of robot's axes); output is point Q
 	
 	unsigned char k,i,j;
-	unsigned char n=4; // n=4 for quartic Bezier curves
+	int n = Order; // n=4 for quartic Bezier curves (used for round edges), n=3 for cubic Bezier curves (used for MS movement)
 
 	if((u<0)||(u>1))
 		return 255;
@@ -561,7 +561,7 @@ unsigned short EvaluateBezier (Point_Type P[5], float u, Point_Type *Q,int Size)
 	return 0;
 }
 
-float BezierLength(Point_Type P[5], int Size)
+float BezierLength(Point_Type P[5], int Size, int Order)
 {// input are Bezier control points P0..P4 and size of coordinate system (number of robot's axes)
 
 	Point_Type Point[2];
@@ -574,7 +574,7 @@ float BezierLength(Point_Type P[5], int Size)
 	//evaluate the BezierCurve at different points and then add the distances between them
 	for(i=1;i<=k;i++)
 	{
-		EvaluateBezier(P,(float)(i) / (float) (k),&(Point[1]),Size);
+		EvaluateBezier(P,(float)(i) / (float) (k),&(Point[1]),Size,Order);
 		Length += LineLength(Point[0].Axes,Point[1].Axes,Size);
 		Point[0] = Point[1];
 	}
@@ -583,7 +583,7 @@ float BezierLength(Point_Type P[5], int Size)
 
 }
 
-float BezierLengthHalf1(Point_Type P[5], int Size)
+float BezierLengthHalf1(Point_Type P[5], int Size, int Order)
 {// input are Bezier control points P0..P4 and size of coordinate system (number of robot's axes)
  // calculates only length of first half P0..P2
 	
@@ -597,7 +597,7 @@ float BezierLengthHalf1(Point_Type P[5], int Size)
 	//evaluate the BezierCurve at different points and then add the distances between them
 	for(i=1;i<=k/2;i++)
 	{
-		EvaluateBezier(P,(float)(i) / (float) (k),&(Point[1]),Size);
+		EvaluateBezier(P,(float)(i) / (float) (k),&(Point[1]),Size,Order);
 		Length += LineLength(Point[0].Axes,Point[1].Axes,Size);
 		Point[0] = Point[1];
 	}
@@ -606,7 +606,7 @@ float BezierLengthHalf1(Point_Type P[5], int Size)
 
 }
 
-float BezierLengthHalf2(Point_Type P[5], int Size)
+float BezierLengthHalf2(Point_Type P[5], int Size, int Order)
 {// input are Bezier control points P0..P4 and size of coordinate system (number of robot's axes)
 	// calculates only length of second half P2..P4
 
@@ -615,12 +615,12 @@ float BezierLengthHalf2(Point_Type P[5], int Size)
 	int k = 10; //increase number of points for more accuracy
 	float Length = 0;
 	
-	EvaluateBezier(P,0.5f,&(Point[0]),Size);
+	EvaluateBezier(P,0.5f,&(Point[0]),Size,Order);
 	
 	//evaluate the BezierCurve at different points and then add the distances between them
 	for(i=k/2+1;i<=k;i++)
 	{
-		EvaluateBezier(P,(float)(i) / (float) (k),&(Point[1]),Size);
+		EvaluateBezier(P,(float)(i) / (float) (k),&(Point[1]),Size,Order);
 		Length += LineLength(Point[0].Axes,Point[1].Axes,Size);
 		Point[0] = Point[1];
 	}
@@ -722,29 +722,33 @@ unsigned short StoppingDistance(float v_max, float a_max, float j_max, float v_a
 
 unsigned short DynamicLimitsViolated(float P1[6], float P2[6], int Size, struct Robot_Parameter_JointLimits_Type Limit[6], float CycleTime, float *redFactor)
 { //checks if the dynamic limits of the joints are being violated during the current cycle time
+    //returns indexes(+1) of axes where largest violation occurs - e.g. 01010010 means violation on axes 1,4,6
     int k;
-    *redFactor = 1.0;
+    float tmpRedFactor = 1.0;
    
+    unsigned short BadAxes = 0;
+    
     for(k=0;k<Size;k++)
     {
         float JointSpeed = (P2[k]-P1[k]) / CycleTime;
         if (JointSpeed != 0)
         {
-            if (JointSpeed > Limit[k].VelocityPos)
+            if ((JointSpeed > 0)&&(Limit[k].VelocityPos / JointSpeed < tmpRedFactor))
             {
-                *redFactor = Limit[k].VelocityPos / JointSpeed;
-                return 1;
+                tmpRedFactor = Limit[k].VelocityPos / JointSpeed;
+                BadAxes |= 1<<(k+1);
             }
-            if (JointSpeed < -Limit[k].VelocityNeg)
+            if ((JointSpeed < 0)&&(-Limit[k].VelocityNeg / JointSpeed < tmpRedFactor))
             {
-                *redFactor = -Limit[k].VelocityNeg / JointSpeed;
-                return 1;
+                tmpRedFactor = -Limit[k].VelocityNeg / JointSpeed;
+                BadAxes |= 1<<(k+1);
             }
         }
     }
 	
-    return 0;
-   
+    *redFactor = tmpRedFactor;
+
+    return BadAxes;
 
 }
 

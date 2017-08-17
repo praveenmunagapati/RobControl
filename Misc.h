@@ -20,6 +20,13 @@ typedef struct Edge_Type
 	Point_Type CtrlPoint[5];
 } Edge_Type;
 
+typedef struct Spline_Type
+{
+    float LengthA;
+    float LengthB;
+    Point_Type CtrlPoint[4];
+} Spline_Type;
+
 typedef struct Path_Type
 {	
 	float StartPointPath[6];
@@ -46,7 +53,8 @@ typedef struct Path_Type
 	float QuatAngle2;	//from middle to end
 	float uM; //position of middle point (0..1)
 	Edge_Type StartEdge;
-	Edge_Type EndEdge;
+    Edge_Type EndEdge;
+    Spline_Type Spline;
 } Path_Type;
 
 typedef struct Label_Type
@@ -57,7 +65,8 @@ typedef struct Label_Type
 } Label_Type;
 
 typedef struct MotionPackage_Type
-	{	unsigned char MovementType;
+{
+    unsigned char MovementType;
 	unsigned short TargetPoint;
 	unsigned short CenterPoint;
 	unsigned short Frame;
@@ -79,6 +88,8 @@ typedef struct MotionPackage_Type
 	unsigned char Planned;
     float StartJointVector[6];
     float EndJointVector[6];
+    float StartPathVector[3];
+    float EndPathVector[3];
     float TransitionAngle;
 	float EndSpeed;
 	float EndAcc;	

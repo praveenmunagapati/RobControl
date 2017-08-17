@@ -75,14 +75,16 @@
 #define ERR_CHECKSUM 1006
 #define ERR_CYCLETIME 1005
 #define ERR_DISABLED 99
-#define TRF_POSE_FRONT 0
 #define TRF_DIRECT 0
 #define TRF_INVERSE 1
 #define TRF_POSE_RIGHT 0
 #define TRF_POSE_LEFT 1
 #define TRF_POSE_CONVEX 0
 #define TRF_POSE_CONCAVE 2
+#define TRF_POSE_FRONT 0
 #define TRF_POSE_BACK 4
+#define TRF_POSE_POSITIVE 0
+#define TRF_POSE_NEGATIVE 8
 #define RING_BUFFER_SIZE 100
 #define BUFFER_LENGTH 20
 #define MAX_PRG_SIZE 10000
@@ -227,6 +229,7 @@ typedef struct Robot_Parameter_Type
 	float FilterTime;
 	float MaxTransitionAngle;
 	unsigned short SingleStep;
+	unsigned long BR_Mem;
 } Robot_Parameter_Type;
 
 typedef struct Robot_Monitor_Type
@@ -254,6 +257,7 @@ typedef struct Robot_Monitor_Type
 	unsigned short ActiveError;
 	unsigned short ErrorLine;
 	enum Robot_Monitor_State_Type State;
+	float debug[5];
 } Robot_Monitor_Type;
 
 typedef struct Robot_Type

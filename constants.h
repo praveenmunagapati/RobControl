@@ -13,6 +13,7 @@
 #define MOVE_GOTO 9
 #define MOVE_MCODE_SYNCH 10
 #define MOVE_TRK 11
+#define MOVE_SPLINE 12
 #define TRF_EPSILON 0.000001f
 #define STATUS_ABORT 3
 #define PHASE_START 0
@@ -21,6 +22,10 @@
 #define FEED_DEFAULT 0
 #define FEED_CART 1
 #define FEED_ANG 2
+#define BEZIER_CUBIC 3
+#define BEZIER_QUARTIC 4
+#define BEZIER_XYZ 3
+#define BEZIER_SEGMENT 0.333
 
 #endif
 

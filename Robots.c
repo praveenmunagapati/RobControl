@@ -154,6 +154,15 @@ unsigned short ArmInverse(Link_Type Links[6], float PathAxes[6], float JointAxes
         Pose |= TRF_POSE_CONVEX;
     }
 
+    if (JointAxes[4] < 0)
+    {
+        Pose |= TRF_POSE_NEGATIVE;
+    }
+    else
+    {
+        Pose |= TRF_POSE_POSITIVE;
+    }
+
     /* check mechanical parameters consistency */
     if ((a1z < 0)||(a2z <= 0)||(a3z < 0)||((a3x+a4x) <= 0)||(a5x <= 0))
     {
@@ -305,22 +314,72 @@ unsigned short ArmInverse(Link_Type Links[6], float PathAxes[6], float JointAxes
     C_temp[0] = Modulo2PI(C_temp[0],JointAxes[5]);
     C_temp[1] = Modulo2PI(C_temp[1],JointAxes[5]);
 
-    // choose closest solution to current values
+    //calculate distance of the two solutions from actual values
     ABC_dist[0] = fabs(A_temp[0]-A_actual) + fabs(B_temp[0]-B_actual) + fabs(C_temp[0]-C_actual);
     ABC_dist[1] = fabs(A_temp[1]-A_actual) + fabs(B_temp[1]-B_actual) + fabs(C_temp[1]-C_actual);
-    if (ABC_dist[0] <= ABC_dist[1])
-    {
-        Axes[3] = A_temp[0];
-        Axes[4] = B_temp[0];
-        Axes[5] = C_temp[0];
+    
+    //keep same pose for wrist
+    if (Pose & TRF_POSE_NEGATIVE)
+    { //use solution with negative Q5
+        if((B_temp[0]<0)&&(B_temp[1]>=0))
+        { //use B_temp[0]
+            Axes[3] = A_temp[0];
+            Axes[4] = B_temp[0];
+            Axes[5] = C_temp[0];            
+        }
+        else if((B_temp[1]<0)&&(B_temp[0]>=0))
+        { //use B_temp[1]
+            Axes[3] = A_temp[1];
+            Axes[4] = B_temp[1];
+            Axes[5] = C_temp[1];
+        }
+        else
+        { //use closest solution to current values
+            if (ABC_dist[0] <= ABC_dist[1])
+            {
+                Axes[3] = A_temp[0];
+                Axes[4] = B_temp[0];
+                Axes[5] = C_temp[0];
+            }
+            else
+            {
+                Axes[3] = A_temp[1];
+                Axes[4] = B_temp[1];
+                Axes[5] = C_temp[1];
+            }	    
+        }
     }
     else
-    {
-        Axes[3] = A_temp[1];
-        Axes[4] = B_temp[1];
-        Axes[5] = C_temp[1];
-    }	
-
+    { //use solution with positive Q5
+        if((B_temp[0]>=0)&&(B_temp[1]<0))
+        { //use B_temp[0]
+            Axes[3] = A_temp[0];
+            Axes[4] = B_temp[0];
+            Axes[5] = C_temp[0];            
+        }
+        else if((B_temp[1]>=0)&&(B_temp[0]<0))
+        { //use B_temp[1]
+            Axes[3] = A_temp[1];
+            Axes[4] = B_temp[1];
+            Axes[5] = C_temp[1];
+        }
+        else
+        { //use closest solution to current values
+            if (ABC_dist[0] <= ABC_dist[1])
+            {
+                Axes[3] = A_temp[0];
+                Axes[4] = B_temp[0];
+                Axes[5] = C_temp[0];
+            }
+            else
+            {
+                Axes[3] = A_temp[1];
+                Axes[4] = B_temp[1];
+                Axes[5] = C_temp[1];
+            }	    
+        }
+    }
+    
     for(i=3;i<6;i++)
     {
         Axes[i] = RoundToEpsilon(Axes[i]);
