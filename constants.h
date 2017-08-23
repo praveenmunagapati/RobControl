@@ -14,6 +14,7 @@
 #define MOVE_MCODE_SYNCH 10
 #define MOVE_TRK 11
 #define MOVE_SPLINE 12
+#define MOVE_TANG 13
 #define TRF_EPSILON 0.000001f
 #define STATUS_ABORT 3
 #define PHASE_START 0

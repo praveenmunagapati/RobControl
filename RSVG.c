@@ -46,7 +46,7 @@ void RSVG(struct RSVG_Type* inst)
 	j = inst->j;
 	astart_up = inst->astart_up;
 	astart_down = inst->astart_down;
-	float cycletime = inst->Cycletime;
+	float cycletime = inst->Cycletime * inst->RedFactor;    //this is the magic of optimized motion (limited speed only)
 	if (cycletime < 0)
 	{
 		cycletime = 0;
@@ -244,7 +244,7 @@ void RSVG(struct RSVG_Type* inst)
 			inst->Done = 0;
 			inst->State = STATE_STOPPING;	
             if (override > 0)
-			    inst->beginSpeed = inst->Speed / override;
+			    inst->beginSpeed = inst->Speed * inst->RedFactor / override; //added RedFactor here so that movements that are slowed down already stop quickly
             else
                 inst->beginSpeed = 0;
 			inst->beginAcc = fabs(inst->Acceleration);

@@ -36,6 +36,7 @@
 #define ERR_PP_CIRCLE_MIDDLEPOINT 1152
 #define ERR_PP_CIRCLE_LENGTH 1151
 #define ERR_PP_CIRCLEPOINTS 1150
+#define ERR_IP_TANG 1117
 #define ERR_IP_SUBLEVEL 1116
 #define ERR_IP_JUMP 1115
 #define ERR_IP_TRK_INDEX 1114
@@ -229,7 +230,6 @@ typedef struct Robot_Parameter_Type
 	float FilterTime;
 	float MaxTransitionAngle;
 	unsigned short SingleStep;
-	unsigned long BR_Mem;
 } Robot_Parameter_Type;
 
 typedef struct Robot_Monitor_Type
@@ -254,10 +254,11 @@ typedef struct Robot_Monitor_Type
 	unsigned short M[101];
 	unsigned char TrackActive;
 	unsigned char TrackSynch;
+	unsigned char TangActive;
+	float TangOffset;
 	unsigned short ActiveError;
 	unsigned short ErrorLine;
 	enum Robot_Monitor_State_Type State;
-	float debug[5];
 } Robot_Monitor_Type;
 
 typedef struct Robot_Type
@@ -267,8 +268,7 @@ typedef struct Robot_Type
 } Robot_Type;
 
 
-
-unsigned short RobotControl(struct Robot_Type* Robots, unsigned char RobotsNumber);
+unsigned short RobotControl(unsigned long Robots, unsigned char RobotsNumber);
 
 #endif 
 

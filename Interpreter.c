@@ -323,24 +323,7 @@ unsigned short Interpreter(char* Block, MotionPackage_Type* Package)
 		Package->RefPoint.Axes[5] = str2float(strParameter+3);
 	}
 
-	
-	/* look for rotation angle */
-	strParameter = my_strcasestr(Block,"H");
-	if ((strParameter != 0)&&(Package->MovementType != MOVE_HOME))
-	{
-		for(i=1;strParameter[i]!='\0';i++)
-		{
-			if (strParameter[i]==' ')
-				continue;	//ignore emtpy spaces
-			if (((strParameter[i]<'0')||(strParameter[i]>'9'))&&(strParameter[i]!='.')&&(strParameter[i]!='-'))
-				return ERR_IP_SYNTAX;	//only digits are allowed
-			else
-				break;	//digits found -> use atoff to read them
-		}
-		Package->Path.RotAngle = str2float(strParameter+1);
-	}
-	
-	/* look for feedrate */
+    /* look for feedrate */
 	strParameter = my_strcasestr(Block,"F");
 	if (strParameter != 0)
 	{
@@ -421,9 +404,47 @@ unsigned short Interpreter(char* Block, MotionPackage_Type* Package)
 		}
 	}
 	
-	/* look for tool */
+    /* look for Tangential TANG */
+    strMovement = my_strcasestr(Block,"TANG");
+    if (strMovement != 0)
+    {
+        if (Package->MovementType != MOVE_UNDEF) return ERR_IP_CONFLICT;
+        Package->MovementType = MOVE_TANG;
+        for(i=4;strMovement[i]!='\0';i++)
+        {
+            if (strMovement[i]==' ')
+                continue;	//ignore emtpy spaces
+            if ((strMovement[i]<'0')||(strMovement[i]>'1'))
+                return ERR_IP_SYNTAX;	//only 0-1 are allowed
+            else
+                break;	//0-1 found -> use atoi to read them
+        }
+        Package->TangCmd = atoi(strMovement+4);
+        if (strMovement[i]=='\0') //tangential command not complete
+        {
+            return ERR_IP_TANG;
+        }
+    }
+
+    /* look for rotation angle (or tangential offset) */
+    strParameter = my_strcasestr(Block,"H");
+    if ((strParameter != 0)&&(Package->MovementType != MOVE_HOME))
+    {
+        for(i=1;strParameter[i]!='\0';i++)
+        {
+            if (strParameter[i]==' ')
+                continue;	//ignore emtpy spaces
+            if (((strParameter[i]<'0')||(strParameter[i]>'9'))&&(strParameter[i]!='.')&&(strParameter[i]!='-'))
+                return ERR_IP_SYNTAX;	//only digits are allowed
+            else
+                break;	//digits found -> use atoff to read them
+        }
+        Package->Path.RotAngle = str2float(strParameter+1);
+    }
+	
+    /* look for tool */
 	strParameter = my_strcasestr(Block,"T");
-	if ((strParameter != 0)&&(Package->MovementType != MOVE_DELAY)&&(Package->MovementType != MOVE_GOTO)&&(Package->MovementType != MOVE_TRK)) //to avoid conflicts with "WAIT", "GOTO", "TRK"
+	if ((strParameter != 0)&&(Package->MovementType != MOVE_DELAY)&&(Package->MovementType != MOVE_GOTO)&&(Package->MovementType != MOVE_TRK)&&(Package->MovementType != MOVE_TANG)) //to avoid conflicts with "WAIT", "GOTO", "TRK", "TANG"
 	{
 		for(i=1;strParameter[i]!='\0';i++)
 		{

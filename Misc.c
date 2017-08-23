@@ -214,6 +214,7 @@ unsigned short CheckConst()
     check *=  (ERR_IP_TRK_INDEX == 1114);
     check *=  (ERR_IP_JUMP == 1115);
     check *=  (ERR_IP_SUBLEVEL == 1116);
+    check *=  (ERR_IP_TANG == 1117);
     check *=  (ERR_PP_CIRCLEPOINTS == 1150);
     check *=  (ERR_PP_CIRCLE_LENGTH == 1151);
     check *=  (ERR_PP_CIRCLE_MIDDLEPOINT == 1152);

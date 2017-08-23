@@ -15,9 +15,11 @@ typedef struct RefPoint_Type
 
 typedef struct Edge_Type
 {
-	float Radius;
-	float Length;
-	Point_Type CtrlPoint[5];
+    float Radius;
+    float Length;
+    Point_Type CtrlPoint[5];
+    float tangAngleStart;
+    float tangAngleEnd;
 } Edge_Type;
 
 typedef struct Spline_Type
@@ -67,33 +69,34 @@ typedef struct Label_Type
 typedef struct MotionPackage_Type
 {
     unsigned char MovementType;
-	unsigned short TargetPoint;
-	unsigned short CenterPoint;
-	unsigned short Frame;
-	unsigned short Tool;
-	float Round;
-	float MaxSpeed;
-	unsigned char M_Index[MAX_MFUNC+1];
-	float DelayTime;
-	float Feedrate;
-	unsigned char FeedrateType;
-	unsigned short Sub;
-	struct Path_Type Path;
-	struct RefPoint_Type RefPoint;
-	unsigned long LineNumber;
-	char BlockString[MAX_BLOCK_SIZE+1];
-	Label_Type Label;
-	float BlockLength;
-	float BlockLengthIdeal;
-	unsigned char Planned;
+    unsigned short TargetPoint;
+    unsigned short CenterPoint;
+    unsigned short Frame;
+    unsigned short Tool;
+    float Round;
+    float MaxSpeed;
+    unsigned char M_Index[MAX_MFUNC+1];
+    float DelayTime;
+    float Feedrate;
+    unsigned char FeedrateType;
+    unsigned short Sub;
+    struct Path_Type Path;
+    struct RefPoint_Type RefPoint;
+    unsigned long LineNumber;
+    char BlockString[MAX_BLOCK_SIZE+1];
+    Label_Type Label;
+    float BlockLength;
+    float BlockLengthIdeal;
+    unsigned char Planned;
     float StartJointVector[6];
     float EndJointVector[6];
     float StartPathVector[3];
     float EndPathVector[3];
     float TransitionAngle;
-	float EndSpeed;
-	float EndAcc;	
-	unsigned short TrkIndex;
+    float EndSpeed;
+    float EndAcc;	
+    unsigned short TrkIndex;
+    unsigned short TangCmd;
 } MotionPackage_Type;
 
 typedef struct Buffer_Type

@@ -379,6 +379,10 @@ unsigned short ArmInverse(Link_Type Links[6], float PathAxes[6], float JointAxes
             }	    
         }
     }
+
+    //adjust positions of Q6 with +-2PI to bring it closer to desired value
+    Axes[3] = Modulo2PI(Axes[3],JointAxes[3]);
+    Axes[5] = Modulo2PI(Axes[5],JointAxes[5]);
     
     for(i=3;i<6;i++)
     {

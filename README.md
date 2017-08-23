@@ -20,3 +20,4 @@ A simple C library to control industrial robots.
 - Configuration of workspace forbidden areas
 - Single-step mode
 - Execution of nested subroutines
+- Tangential axis
