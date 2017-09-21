@@ -560,7 +560,7 @@ unsigned short RobotControl(unsigned long Robots, unsigned char RobotsNumber)
                 gRobot[i]->Monitor.ErrorLine = 0;
                 }
                 }
- 				
+				
                 gRobot[i]->Monitor.State = MOVING;
             }
         }
@@ -740,12 +740,6 @@ unsigned short RobotControl(unsigned long Robots, unsigned char RobotsNumber)
 			
                 if (Robot_Program[i] != 0)
                 { /* free program string memory */
-
-                    //BR version
-                    AsMemPartFree_0.enable = 1;
-                    AsMemPartFree_0.ident = gRobot[i]->Parameters.BR_Mem;
-                    AsMemPartFree_0.mem = (unsigned long) Robot_Program[i];
-                    AsMemPartFree(&AsMemPartFree_0);
 
                     free(Robot_Program[i]);
 				
@@ -3035,7 +3029,7 @@ unsigned short RobotControl(unsigned long Robots, unsigned char RobotsNumber)
 
                                             tangAngle = Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.StartEdge.tangAngleEnd;
                                         }
-
+                                        
                                         //interpolate ORIENTATION
                                         if (gRobot[i]->Monitor.AxesNum != 6)
                                         {//orientation interpolated linearly
@@ -3188,8 +3182,28 @@ unsigned short RobotControl(unsigned long Robots, unsigned char RobotsNumber)
                                     {
                                         memcpy(&Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.StartPointJoint,&gRobot[i]->Monitor.JointPosition,sizeof(gRobot[i]->Monitor.JointPosition));
                                         memcpy(&Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.StartEdge.CtrlPoint[6].Axes,&gRobot[i]->Monitor.JointPosition,sizeof(gRobot[i]->Monitor.JointPosition));
-                                        Buffer[i].MotionPackage[Buffer[i].EXEC_Index].BlockLength = LineLength(Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.StartPointJoint,Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.TargetPointJoint,gRobot[i]->Monitor.AxesNum);
-                                        //TODO - the BlockLength depends on the feedrate definition!
+                                        
+                                        //calculate block length according to selected feedrate configuration
+                                        if (Buffer[i].MotionPackage[Buffer[i].EXEC_Index].FeedrateType == FEED_CART)
+                                        {
+                                            Buffer[i].MotionPackage[Buffer[i].EXEC_Index].BlockLength = PTPLength(&Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path, gRobot[i]->Monitor.AxesNum, &gRobot[i]->Parameters.Mechanics);
+					
+                                            //fall back on default configuration if there is no cartesian displacement
+                                            if (Buffer[i].MotionPackage[Buffer[i].EXEC_Index].BlockLength < TRF_EPSILON)
+                                                Buffer[i].MotionPackage[Buffer[i].EXEC_Index].BlockLength = LineLength(Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.StartPointJoint,Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.TargetPointJoint,gRobot[i]->Monitor.AxesNum);
+                                        }
+                                        else if (Buffer[i].MotionPackage[Buffer[i].EXEC_Index].FeedrateType == FEED_ANG)
+                                        {
+                                            Buffer[i].MotionPackage[Buffer[i].EXEC_Index].BlockLength = fabs(Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.QuatAngle) * 180.0f / PI; //blocklength in deg								
+
+                                            //fall back on default configuration if there is no angular displacement
+                                            if (Buffer[i].MotionPackage[Buffer[i].EXEC_Index].BlockLength < TRF_EPSILON)
+                                                Buffer[i].MotionPackage[Buffer[i].EXEC_Index].BlockLength = LineLength(Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.StartPointJoint,Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.TargetPointJoint,gRobot[i]->Monitor.AxesNum);
+                                        }
+                                        else
+                                        {
+                                            Buffer[i].MotionPackage[Buffer[i].EXEC_Index].BlockLength = LineLength(Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.StartPointJoint,Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.TargetPointJoint,gRobot[i]->Monitor.AxesNum);
+                                        }
                                     }
                                     
                                     gRobot[i]->Monitor.BlockLength = Buffer[i].MotionPackage[Buffer[i].EXEC_Index].BlockLength;
@@ -3931,7 +3945,6 @@ unsigned short RobotControl(unsigned long Robots, unsigned char RobotsNumber)
                                             gRobot[i]->Monitor.MountBasePosition[4] = tmpB;
                                             gRobot[i]->Monitor.MountBasePosition[5] = tmpC;
                                         }
-                                        
                                         
                                         //tangential auto mode: force C axis to follow path tangent
                                         if(gRobot[i]->Monitor.TangActive)
