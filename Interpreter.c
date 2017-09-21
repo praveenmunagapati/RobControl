@@ -114,10 +114,25 @@ unsigned short Interpreter(char* Block, MotionPackage_Type* Package)
         /* extract label string */
         strMovement+=5;
         while(*strMovement == ' ') strMovement++; //remove preceeding spaces
-        char* end = strMovement + strlen(strMovement) - 1;
-        while((end > strMovement) && (*end == ' ')) end--;
-        *(end+1) = 0; //cut string here (to remove possible following empty spaces)
-        strcpy(Package->Label.Name,strMovement);
+        
+        for(i=1;strMovement[i]!='\0' && strMovement[i]!=' ';i++) {}
+        char *tmpStr = strMovement;
+        tmpStr[i]=0;
+        strcpy(Package->Label.Name,tmpStr);
+  
+        char *tmpIndex = strMovement + i;
+
+        for(i=1;tmpIndex[i]!='\0';i++)
+        {
+            if (tmpIndex[i]==' ')
+                continue;	//ignore emtpy spaces
+            if ((tmpIndex[i]<'1')||(tmpIndex[i]>'9'))
+                return ERR_IP_SYNTAX;	//only digits are allowed
+            else
+                break;	//digits found -> use atoi to read them
+        }
+        Package->Label.Counter = atoi(tmpIndex+1);
+
         return 0; //to prevent conflicts with other commands
     }
 
@@ -130,10 +145,25 @@ unsigned short Interpreter(char* Block, MotionPackage_Type* Package)
         /* extract label string */
         strMovement+=4;
         while(*strMovement == ' ') strMovement++; //remove preceeding spaces
-        char* end = strMovement + strlen(strMovement) - 1;
-        while((end > strMovement) && (*end == ' ')) end--;
-        *(end+1) = 0; //cut string here (to remove possible following empty spaces)
-        strcpy(Package->Label.Name,strMovement);
+        
+        for(i=1;strMovement[i]!='\0' && strMovement[i]!=' ';i++) {}
+        char *tmpStr = strMovement;
+        tmpStr[i]=0;
+        strcpy(Package->Label.Name,tmpStr);
+  
+        char *tmpIndex = strMovement + i;
+
+        for(i=1;tmpIndex[i]!='\0';i++)
+        {
+            if (tmpIndex[i]==' ')
+                continue;	//ignore emtpy spaces
+            if ((tmpIndex[i]<'1')||(tmpIndex[i]>'9'))
+                return ERR_IP_SYNTAX;	//only digits are allowed
+            else
+                break;	//digits found -> use atoi to read them
+        }
+        Package->Label.Counter = atoi(tmpIndex+1);
+
         return 0; //to prevent conflicts with other commands
     }
 
@@ -190,6 +220,10 @@ unsigned short Interpreter(char* Block, MotionPackage_Type* Package)
 			else
 				break;	//digits found -> use atoi to read them
 		}
+        if (strParameter[i]==0)
+        {
+            return ERR_IP_POINTINDEX;
+        }
 		Package->TargetPoint = atoi(strParameter+1);
 		if (Package->TargetPoint >=MAX_POINT)
 		{
@@ -214,7 +248,11 @@ unsigned short Interpreter(char* Block, MotionPackage_Type* Package)
 			else
 				break;	//digits found -> use atoi to read them
 		}
-		Package->CenterPoint = atoi(strParameter+1);
+        if (strParameter[i]==0)
+        {
+            return ERR_IP_POINTINDEX;
+        }
+        Package->CenterPoint = atoi(strParameter+1);
 		if (Package->CenterPoint >=MAX_POINT)
 		{
 			return ERR_IP_POINTINDEX;
@@ -239,6 +277,10 @@ unsigned short Interpreter(char* Block, MotionPackage_Type* Package)
 			else
 				break;	//digits found -> use atoff to read them
 		}
+        if (strParameter[i]==0)
+        {//end of line - no position programmed after Ji=
+            return ERR_IP_SYNTAX;
+        }
 		Package->RefPoint.Defined[0] = 1;
 		Package->RefPoint.Axes[0] = str2float(strParameter+3);
 	}
@@ -255,7 +297,11 @@ unsigned short Interpreter(char* Block, MotionPackage_Type* Package)
 			else
 				break;	//digits found -> use atoff to read them
 		}
-		Package->RefPoint.Defined[1] = 1;
+        if (strParameter[i]==0)
+        {//end of line - no position programmed after Ji=
+            return ERR_IP_SYNTAX;
+        }
+        Package->RefPoint.Defined[1] = 1;
 		Package->RefPoint.Axes[1] = str2float(strParameter+3);
 	}
 	strParameter = my_strcasestr(Block,"J3=");
@@ -271,7 +317,11 @@ unsigned short Interpreter(char* Block, MotionPackage_Type* Package)
 			else
 				break;	//digits found -> use atoff to read them
 		}
-		Package->RefPoint.Defined[2] = 1;
+        if (strParameter[i]==0)
+        {//end of line - no position programmed after Ji=
+            return ERR_IP_SYNTAX;
+        }
+        Package->RefPoint.Defined[2] = 1;
 		Package->RefPoint.Axes[2] = str2float(strParameter+3);
 	}
 	strParameter = my_strcasestr(Block,"J4=");
@@ -287,7 +337,11 @@ unsigned short Interpreter(char* Block, MotionPackage_Type* Package)
 			else
 				break;	//digits found -> use atoff to read them
 		}
-		Package->RefPoint.Defined[3] = 1;
+        if (strParameter[i]==0)
+        {//end of line - no position programmed after Ji=
+            return ERR_IP_SYNTAX;
+        }
+        Package->RefPoint.Defined[3] = 1;
 		Package->RefPoint.Axes[3] = str2float(strParameter+3);
 	}
 	strParameter = my_strcasestr(Block,"J5=");
@@ -303,7 +357,11 @@ unsigned short Interpreter(char* Block, MotionPackage_Type* Package)
 			else
 				break;	//digits found -> use atoff to read them
 		}
-		Package->RefPoint.Defined[4] = 1;
+        if (strParameter[i]==0)
+        {//end of line - no position programmed after Ji=
+            return ERR_IP_SYNTAX;
+        }
+        Package->RefPoint.Defined[4] = 1;
 		Package->RefPoint.Axes[4] = str2float(strParameter+3);
 	}
 	strParameter = my_strcasestr(Block,"J6=");
@@ -319,7 +377,11 @@ unsigned short Interpreter(char* Block, MotionPackage_Type* Package)
 			else
 				break;	//digits found -> use atoff to read them
 		}
-		Package->RefPoint.Defined[5] = 1;
+        if (strParameter[i]==0)
+        {//end of line - no position programmed after Ji=
+            return ERR_IP_SYNTAX;
+        }
+        Package->RefPoint.Defined[5] = 1;
 		Package->RefPoint.Axes[5] = str2float(strParameter+3);
 	}
 
@@ -379,7 +441,11 @@ unsigned short Interpreter(char* Block, MotionPackage_Type* Package)
 			else
 				break;	//digits found -> use atoff to read them
 		}
-		Package->DelayTime = str2float(strMovement+4);
+        if (strParameter[i]==0)
+        {//end of line - no time programmed after WAIT
+            return ERR_IP_SYNTAX;
+        }
+        Package->DelayTime = str2float(strMovement+4);
 	}
 
 	/* look for Tracking TRK */
@@ -439,6 +505,10 @@ unsigned short Interpreter(char* Block, MotionPackage_Type* Package)
             else
                 break;	//digits found -> use atoff to read them
         }
+        if (strParameter[i]==0)
+        {//end of line - no value programmed after H
+            return ERR_IP_SYNTAX;
+        }
         Package->Path.RotAngle = str2float(strParameter+1);
     }
 	
@@ -455,6 +525,10 @@ unsigned short Interpreter(char* Block, MotionPackage_Type* Package)
 			else
 				break;	//digits found -> use atoi to read them
 		}
+        if (strParameter[i]==0)
+        {//end of line - no value programmed after T
+            return ERR_IP_TOOLINDEX;
+        }
 		Package->Tool = atoi(strParameter+1);
 		if (Package->Tool >=MAX_TOOL)
 		{
@@ -475,6 +549,10 @@ unsigned short Interpreter(char* Block, MotionPackage_Type* Package)
 			else
 				break;	//digits found -> use atoi to read them
 		}
+        if (strParameter[i]==0)
+        {//end of line - no value programmed after Z
+            return ERR_IP_FRAMEINDEX;
+        }
 		Package->Frame = atoi(strParameter+1);
 		if (Package->Frame >=MAX_FRAME)
 		{
@@ -496,6 +574,10 @@ unsigned short Interpreter(char* Block, MotionPackage_Type* Package)
 			else
 				break;	//digits found -> use atoff to read them
 		}
+        if (strParameter[i]==0)
+        {//end of line - no value programmed after R
+            return ERR_IP_SYNTAX;
+        }
 		Package->Round = str2float(strParameter+1);
 	}
 

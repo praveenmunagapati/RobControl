@@ -14,8 +14,6 @@
 
 #define sign(a) ( (a<0)?-1:1 )
 #define min(a,b) ( (a<b)?a:b )
-#define REAL_MAX 8388607
-#define REAL_MIN -8388608
 
 
 unsigned short RobotControl(unsigned long Robots, unsigned char RobotsNumber)
@@ -28,23 +26,14 @@ unsigned short RobotControl(unsigned long Robots, unsigned char RobotsNumber)
     unsigned char AxesMoved = 0;
 	
     float OldAxesValues[6];
-    float TempAxesValues[6];
-    float TempJointsValues[6];
-    float TempPathValues[6];
+    float tmpAxesValues[6];
+    float tmpJointsValues[6];
+    float tmpPathValues[6];
     float BlockTime;
+    unsigned short tmpViolate;
 	
     char line[MAX_BLOCK_SIZE];	
 	
-    /*
-	//EVALUATION VERSION -> TIME LIMITED!!!
-	if (EvaluationTime > 3600000)
-	{// evaluation time run off -> must restart machine
-		return ERR_ROBOT_LICENSE;
-	}
-	*/
-    
-	//if (NoLicense) return ERR_ROBOT_LICENSE; //add license check here if needed
-
     if (!CheckConstDone)
     {
         CheckConstDone = CheckConst();
@@ -559,19 +548,19 @@ unsigned short RobotControl(unsigned long Robots, unsigned char RobotsNumber)
 				
                 /* dynamically allocate memory for the program string */
 
-                Robot_Program[i] = calloc(strlen(gRobot[i]->Parameters.Program) + 1,sizeof(char));
+                 Robot_Program[i] = calloc(strlen(gRobot[i]->Parameters.Program) + 1,sizeof(char));
 
                 if (Robot_Program[i] == 0) { //memory allocation error
-					gRobot[i]->Monitor.ActiveError = ERR_FILE_NOMEMORY;
-					gRobot[i]->Monitor.ErrorLine = 0;
+                gRobot[i]->Monitor.ActiveError = ERR_FILE_NOMEMORY;
+                gRobot[i]->Monitor.ErrorLine = 0;
                 } else { // copy program string into new memory so that it will not be modified during program execution
-					strcpy(Robot_Program[i], gRobot[i]->Parameters.Program);
-					if (strlen(Robot_Program[i]) == 0) { // empty string
-						gRobot[i]->Monitor.ActiveError = ERR_FILE_EMPTY;
-						gRobot[i]->Monitor.ErrorLine = 0;
-					}
+                strcpy(Robot_Program[i], gRobot[i]->Parameters.Program);
+                if (strlen(Robot_Program[i]) == 0) { // empty string
+                gRobot[i]->Monitor.ActiveError = ERR_FILE_EMPTY;
+                gRobot[i]->Monitor.ErrorLine = 0;
                 }
-				
+                }
+ 				
                 gRobot[i]->Monitor.State = MOVING;
             }
         }
@@ -647,13 +636,13 @@ unsigned short RobotControl(unsigned long Robots, unsigned char RobotsNumber)
         /* automatically limit axes position limits to REAL accuracy */
         for (k=0;k<gRobot[i]->Monitor.AxesNum;k++)
         {					
-            if (gRobot[i]->Parameters.JointLimits[k].PositionPos > REAL_MAX)
+            if (gRobot[i]->Parameters.JointLimits[k].PositionPos > FLOAT_MAX)
             {
-                gRobot[i]->Parameters.JointLimits[k].PositionPos = REAL_MAX;
+                gRobot[i]->Parameters.JointLimits[k].PositionPos = FLOAT_MAX;
             }
-            if (gRobot[i]->Parameters.JointLimits[k].PositionNeg < REAL_MIN)
+            if (gRobot[i]->Parameters.JointLimits[k].PositionNeg < FLOAT_MIN)
             {
-                gRobot[i]->Parameters.JointLimits[k].PositionNeg = REAL_MIN;
+                gRobot[i]->Parameters.JointLimits[k].PositionNeg = FLOAT_MIN;
             }
         }
 
@@ -662,7 +651,7 @@ unsigned short RobotControl(unsigned long Robots, unsigned char RobotsNumber)
         {
             for (k=0;k<gRobot[i]->Monitor.AxesNum;k++)
             {			
-                if ((gRobot[i]->Parameters.JointLimits[k].PositionPos <= gRobot[i]->Parameters.JointLimits[k].PositionNeg))
+                if ((gRobot[i]->Parameters.JointLimits[k].PositionPos < gRobot[i]->Parameters.JointLimits[k].PositionNeg))
                 {
                     gRobot[i]->Monitor.ActiveError = ERR_WRONG_JOINT_LIMITS;
                     gRobot[i]->Monitor.ErrorLine = 0;
@@ -672,18 +661,27 @@ unsigned short RobotControl(unsigned long Robots, unsigned char RobotsNumber)
 		
         if (gRobot[i]->Monitor.State == MOVING)
         {
+            /* WORKSPACE MONITORING (cyclic) */
+            
+            for (k=0;k<MAX_ZONE;k++)
+            {
+                //check for allowed and forbidden zones
+                if (!gRobot[i]->Parameters.Workspace[k].Type)
+                    continue;
+
+                unsigned short tmpInside = PointInBox(gRobot[i]->Monitor.ToolBasePosition,gRobot[i]->Parameters.Workspace[k].PositionMin,gRobot[i]->Parameters.Workspace[k].PositionMax);
+                if ((!tmpInside && gRobot[i]->Parameters.Workspace[k].Type==ZONE_SAFE) || (tmpInside && gRobot[i]->Parameters.Workspace[k].Type==ZONE_FORBIDDEN))
+                {                   
+                    fRSVG[i].EStop = 1;
+                    StoppingError[i] = ERR_WORKSPACE_ZONE1 + k;
+                    StoppingLine[i] = gRobot[i]->Monitor.LineNumber;
+                    break;
+                }                
+            }            
             for (k=0;k<gRobot[i]->Monitor.AxesNum;k++)
             {	
-                //check for path axes limits - only if these are set (max>min)
-                if (((gRobot[i]->Monitor.ToolBasePosition[k] > gRobot[i]->Parameters.WorkspaceLimits.PositionMax[k])||(gRobot[i]->Monitor.ToolBasePosition[k] < gRobot[i]->Parameters.WorkspaceLimits.PositionMin[k]))&&(gRobot[i]->Parameters.WorkspaceLimits.PositionMax[k] > gRobot[i]->Parameters.WorkspaceLimits.PositionMin[k]))
-                {
-                    fRSVG[i].EStop = 1;
-                    StoppingError[i] = ERR_LIMIT_X + k;
-                    StoppingLine[i] = gRobot[i]->Monitor.LineNumber;
-                }
-				
-                //check for joint axes limits
-                if ((gRobot[i]->Monitor.JointPosition[k] > gRobot[i]->Parameters.JointLimits[k].PositionPos)||(gRobot[i]->Monitor.JointPosition[k] < gRobot[i]->Parameters.JointLimits[k].PositionNeg))
+                //check for joint axes limits - only if these are set (max>min)
+                if (((gRobot[i]->Monitor.JointPosition[k] > gRobot[i]->Parameters.JointLimits[k].PositionPos)||(gRobot[i]->Monitor.JointPosition[k] < gRobot[i]->Parameters.JointLimits[k].PositionNeg))&&(gRobot[i]->Parameters.JointLimits[k].PositionPos > gRobot[i]->Parameters.JointLimits[k].PositionNeg))
                 {
                     fRSVG[i].EStop = 1;
                     StoppingError[i] = ERR_LIMIT_J1 + k;
@@ -696,8 +694,8 @@ unsigned short RobotControl(unsigned long Robots, unsigned char RobotsNumber)
         {// do not check limits when jogging joints - user needs to be able to move back to workspace with manual movements
             for (k=0;k<gRobot[i]->Monitor.AxesNum;k++)
             {					
-                //check for joint axes limits
-                if ((gRobot[i]->Monitor.JointPosition[k] > gRobot[i]->Parameters.JointLimits[k].PositionPos)||(gRobot[i]->Monitor.JointPosition[k] < gRobot[i]->Parameters.JointLimits[k].PositionNeg))
+                //check for joint axes limits - only if these are set (max>min)
+                if (((gRobot[i]->Monitor.JointPosition[k] > gRobot[i]->Parameters.JointLimits[k].PositionPos)||(gRobot[i]->Monitor.JointPosition[k] < gRobot[i]->Parameters.JointLimits[k].PositionNeg))&&(gRobot[i]->Parameters.JointLimits[k].PositionPos > gRobot[i]->Parameters.JointLimits[k].PositionNeg))
                 {
                     fRSVG[i].EStop = 1;
                     StoppingError[i] = ERR_LIMIT_J1 + k;
@@ -742,6 +740,12 @@ unsigned short RobotControl(unsigned long Robots, unsigned char RobotsNumber)
 			
                 if (Robot_Program[i] != 0)
                 { /* free program string memory */
+
+                    //BR version
+                    AsMemPartFree_0.enable = 1;
+                    AsMemPartFree_0.ident = gRobot[i]->Parameters.BR_Mem;
+                    AsMemPartFree_0.mem = (unsigned long) Robot_Program[i];
+                    AsMemPartFree(&AsMemPartFree_0);
 
                     free(Robot_Program[i]);
 				
@@ -862,8 +866,8 @@ unsigned short RobotControl(unsigned long Robots, unsigned char RobotsNumber)
                         {//make sure joints are within limits
                             for (k=0;k<gRobot[i]->Monitor.AxesNum;k++)
                             {					
-                                //check for joint axes limits
-                                if ((gRobot[i]->Monitor.JointPosition[k] > gRobot[i]->Parameters.JointLimits[k].PositionPos)||(gRobot[i]->Monitor.JointPosition[k] < gRobot[i]->Parameters.JointLimits[k].PositionNeg))
+                                //check for joint axes limits - only if these are set (max>min)
+                                if (((gRobot[i]->Monitor.JointPosition[k] > gRobot[i]->Parameters.JointLimits[k].PositionPos)||(gRobot[i]->Monitor.JointPosition[k] < gRobot[i]->Parameters.JointLimits[k].PositionNeg))&&(gRobot[i]->Parameters.JointLimits[k].PositionPos > gRobot[i]->Parameters.JointLimits[k].PositionNeg))
                                 {
                                     WorkspaceFlag = k+1;
                                 }
@@ -978,8 +982,8 @@ unsigned short RobotControl(unsigned long Robots, unsigned char RobotsNumber)
                         {//make sure joints are within limits
                             for (k=0;k<gRobot[i]->Monitor.AxesNum;k++)
                             {					
-                                //check for joint axes limits
-                                if ((gRobot[i]->Monitor.JointPosition[k] > gRobot[i]->Parameters.JointLimits[k].PositionPos)||(gRobot[i]->Monitor.JointPosition[k] < gRobot[i]->Parameters.JointLimits[k].PositionNeg))
+                                //check for joint axes limits - only if these are set (max>min)
+                                if (((gRobot[i]->Monitor.JointPosition[k] > gRobot[i]->Parameters.JointLimits[k].PositionPos)||(gRobot[i]->Monitor.JointPosition[k] < gRobot[i]->Parameters.JointLimits[k].PositionNeg))&&(gRobot[i]->Parameters.JointLimits[k].PositionPos > gRobot[i]->Parameters.JointLimits[k].PositionNeg))
                                 {
                                     WorkspaceFlag = k+1;
                                 }
@@ -1068,104 +1072,197 @@ unsigned short RobotControl(unsigned long Robots, unsigned char RobotsNumber)
                 /*** ---- IP ---- ***/
                 /*** interpret next block to keep buffer full ***/
                 unsigned short IP_LoopCount = 0;
-                while ((Buffer[i].MotionPackage[Buffer[i].IP_Index].MovementType == MOVE_UNDEF)&&(IP_LoopCount < MAX_LOOP_COUNT)&&(Buffer[i].Eof == 0)&&(StoppingError[i] == 0)) //until buffer full or end of file or active error (or stop)
+                //loop until buffer full or end of file or active error (or stop)
+                while ((Buffer[i].MotionPackage[Buffer[i].IP_Index].MovementType == MOVE_UNDEF)&&(IP_LoopCount < MAX_LOOP_COUNT)&&(Buffer[i].Eof == 0)&&(StoppingError[i] == 0))
                 {
-                IP_LoopCount++; //used to avoid long loops in case NC program is full of comments or empty lines; infinite loops caused by GOTO; or long searches for labels
-                if ( ((Robot_Program[i] != 0)&&(LineFromString(Robot_Program[i], line, Buffer[i].IP_PrgCount) == STATUS_OK)) ||		//move_program
-                ((Robot_Program[i] == 0)&&(LineFromString(gRobot[i]->Parameters.Blocks[Buffer[i].IP_PrgCount], line, 0) == STATUS_OK)) )		//move_blocks
-                {// line read correctly from file
-                Buffer[i].MotionPackage[Buffer[i].IP_Index].Feedrate = Buffer[i].ModalFeedrate; //keep modal feedrate (if exists)
-                Buffer[i].MotionPackage[Buffer[i].IP_Index].FeedrateType = Buffer[i].ModalFeedrateType; //keep modal feedrate (if exists)
-                unsigned short IP_Status = Interpreter(line,&(Buffer[i].MotionPackage[Buffer[i].IP_Index]));
-                if (IP_Status != STATUS_OK)
-                { //interpreter error -> abort program with error
-                fRSVG[i].EStop = 1;
-                StoppingError[i] = IP_Status;
-                StoppingLine[i] = Buffer[i].IP_PrgCount;
-                }
-                else if ((Buffer[i].MotionPackage[Buffer[i].IP_Index].MovementType == MOVE_GOTO)||(Buffer[i].MotionPackage[Buffer[i].IP_Index].MovementType == MOVE_SUB))
-                { //found GOTO/SUB line -> interrupt interpreter and start looking for label
-                if (Robot_Program[i] == 0)	//GOTO/SUB not supported for move_blocks
-                {
-                fRSVG[i].EStop = 1;
-                StoppingError[i] = ERR_IP_JUMP;
-                StoppingLine[i] = Buffer[i].IP_PrgCount;								
-                }
-                else
-                {	
-                Buffer[i].MotionPackage[Buffer[i].IP_Index].Label.Found = 0;
-                Buffer[i].MotionPackage[Buffer[i].IP_Index].Label.Index = 0;
-                }
-                }
-                else if (Buffer[i].MotionPackage[Buffer[i].IP_Index].MovementType == MOVE_END)
-                {
-                if (Buffer[i].IP_SubLevel == 0)
-                {//END of main program -> stop interpreter
-                Buffer[i].Eof = 1;
-                Buffer[i].MotionPackage[Buffer[i].IP_Index].LineNumber = Buffer[i].IP_PrgCount;
-                }
-                else
-                {//END of subprogram -> return to calling program
-                Buffer[i].IP_PrgCount = Buffer[i].IP_ReturnIdx[Buffer[i].IP_SubLevel];
-                Buffer[i].IP_SubLevel--;
-                Buffer[i].MotionPackage[Buffer[i].IP_Index].MovementType = MOVE_UNDEF;	//delete END command from buffer
-                }
-                }
-                else if (Buffer[i].MotionPackage[Buffer[i].IP_Index].MovementType != MOVE_UNDEF)
-                { //found movement block -> save in buffer
-                Buffer[i].MotionPackage[Buffer[i].IP_Index].LineNumber = Buffer[i].IP_PrgCount;
-                strcpy(Buffer[i].MotionPackage[Buffer[i].IP_Index].BlockString,line);
-                Buffer[i].ModalFeedrate = Buffer[i].MotionPackage[Buffer[i].IP_Index].Feedrate; //save new modal feedrate
-                Buffer[i].ModalFeedrateType = Buffer[i].MotionPackage[Buffer[i].IP_Index].FeedrateType; //save new modal feedrate type
-                if (Buffer[i].MotionPackage[Buffer[i].IP_Index].MovementType == MOVE_HOME)
-                {// transform HOME into MJ P0
-                Buffer[i].MotionPackage[Buffer[i].IP_Index].MovementType = MOVE_PTP;
-                Buffer[i].MotionPackage[Buffer[i].IP_Index].TargetPoint = 0;
-                }
-                if (Buffer[i].MotionPackage[Buffer[i].IP_Index].MovementType == MOVE_TRK)
-                { //IP error if tracking index was not programmed correctly!
-                if (((Buffer[i].MotionPackage[Buffer[i].IP_Index].TrkIndex == 0)&&(Buffer[i].IP_TrkIndex == 0))||
-                ((Buffer[i].MotionPackage[Buffer[i].IP_Index].TrkIndex > 0)&&(Buffer[i].IP_TrkIndex != 0)))
-                {
-                fRSVG[i].EStop = 1;
-                StoppingError[i] = ERR_IP_TRK_INDEX;
-                StoppingLine[i] = Buffer[i].IP_PrgCount;									
-                }
-                else
-                {
-                Buffer[i].IP_TrkIndex = Buffer[i].MotionPackage[Buffer[i].IP_Index].TrkIndex;
-                }
-                }
-                Buffer[i].IP_Index++;
-                if (Buffer[i].IP_Index >= BUFFER_LENGTH)
-                { //circular buffer
-                Buffer[i].IP_Index = 0;
-                }
-                //move to next line
-                Buffer[i].IP_PrgCount++;
-                if ((Robot_Program[i] == 0)&&(Buffer[i].IP_PrgCount >= RING_BUFFER_SIZE)) //consider ring buffer for move_blocks
-                {
-                Buffer[i].IP_PrgCount -= RING_BUFFER_SIZE;
-                }
-                }
-                else
-                { //useless line (e.g. empty or comment) -> advance to next line (for move_program) or abort (for move_blocks) 
-                if (Robot_Program[i] == 0)
-                {
-                Buffer[i].Eof = 1;
-                Buffer[i].MotionPackage[Buffer[i].IP_Index].LineNumber = Buffer[i].IP_PrgCount;
-                }
-                else
-                {
-                Buffer[i].IP_PrgCount++;
-                }
-                }
-                }
-                else
-                {// cannot read line -> end of file reached, stop interpreter here
-                Buffer[i].Eof = 1;
-                }
-                }
+                    IP_LoopCount++; //used to avoid long loops in case NC program is full of comments or empty lines; infinite loops caused by GOTO; or long searches for labels
+                    if ( ((Robot_Program[i] != 0)&&(LineFromString(Robot_Program[i], line, Buffer[i].IP_PrgCount) == STATUS_OK)) ||		//move_program
+                        ((Robot_Program[i] == 0)&&(LineFromString(gRobot[i]->Parameters.Blocks[Buffer[i].IP_PrgCount], line, 0) == STATUS_OK)) )		//move_blocks
+                    {// line read correctly from file
+                        Buffer[i].MotionPackage[Buffer[i].IP_Index].Feedrate = Buffer[i].ModalFeedrate; //keep modal feedrate (if exists)
+                        Buffer[i].MotionPackage[Buffer[i].IP_Index].FeedrateType = Buffer[i].ModalFeedrateType; //keep modal feedrate (if exists)
+                        unsigned short IP_Status = Interpreter(line,&(Buffer[i].MotionPackage[Buffer[i].IP_Index]));
+                            
+                        if (IP_Status != STATUS_OK)
+                        { //interpreter error -> abort program with error
+                            fRSVG[i].EStop = 1;
+                            StoppingError[i] = IP_Status;
+                            StoppingLine[i] = Buffer[i].IP_PrgCount;
+                        }
+                                
+                        else if ((Buffer[i].MotionPackage[Buffer[i].IP_Index].MovementType == MOVE_GOTO)||(Buffer[i].MotionPackage[Buffer[i].IP_Index].MovementType == MOVE_SUB))
+                        { //found GOTO/SUB line -> interrupt interpreter and start looking for label
+                                
+                            if (Robot_Program[i] == 0)	//GOTO/SUB not supported for move_blocks
+                            {
+                                fRSVG[i].EStop = 1;
+                                StoppingError[i] = ERR_IP_JUMP;
+                                StoppingLine[i] = Buffer[i].IP_PrgCount;								
+                            }
+                            else
+                            {	
+                                //check if this loop is already active
+                                short tmpLoopFound = 0;
+                                for(j=0;j<MAX_SUBLEVEL;j++)
+                                {
+                                    if (Buffer[i].MotionPackage[Buffer[i].IP_Index].MovementType == MOVE_GOTO && Buffer[i].GotoBuffer[j].Line == Buffer[i].IP_PrgCount)
+                                    {//loop already exists - check how many iterations are left
+                                        tmpLoopFound = 1;
+                                        if (Buffer[i].GotoBuffer[j].Counter > 0)
+                                        {//next iteration
+                                            Buffer[i].GotoBuffer[j].Counter--;
+                                            Buffer[i].IP_PrgCount = Buffer[i].GotoBuffer[j].Index; //jump to target label
+                                            Buffer[i].MotionPackage[Buffer[i].IP_Index].MovementType = MOVE_UNDEF;	//delete GOTO/SUB command from buffer	
+                                        }
+                                        else if (Buffer[i].GotoBuffer[j].Counter < 0)
+                                        {//infinite loop
+                                            Buffer[i].GotoBuffer[j].Counter = -1;
+                                            Buffer[i].IP_PrgCount = Buffer[i].GotoBuffer[j].Index; //jump to target label
+                                            Buffer[i].MotionPackage[Buffer[i].IP_Index].MovementType = MOVE_UNDEF;	//delete GOTO/SUB command from buffer	                                            
+                                        }
+                                        else
+                                        {//no more iterations
+                                            Buffer[i].IP_PrgCount++; //jump to next line
+                                            Buffer[i].MotionPackage[Buffer[i].IP_Index].MovementType = MOVE_UNDEF;	//delete GOTO/SUB command from buffer
+                                            //delete loop from buffer (this is important because the same loop might be accessed later again and the counter will have to start again)
+                                            Buffer[i].GotoBuffer[j].Index = 0;
+                                            Buffer[i].GotoBuffer[j].Line = 0;
+                                            Buffer[i].GotoBuffer[j].Counter = 0;
+                                        }
+                                        break;
+                                    }
+                                    else if (Buffer[i].MotionPackage[Buffer[i].IP_Index].MovementType == MOVE_SUB && Buffer[i].SubBuffer[j].Line == Buffer[i].IP_PrgCount)
+                                    {
+                                        tmpLoopFound = 1;
+                                        if (Buffer[i].SubBuffer[j].Counter > 0)
+                                        {//next iteration
+                                            Buffer[i].SubBuffer[j].Counter--;
+                                            Buffer[i].IP_SubLevel++;
+                                            Buffer[i].IP_PrgCount = Buffer[i].SubBuffer[j].Index; //jump to target label
+                                            Buffer[i].MotionPackage[Buffer[i].IP_Index].MovementType = MOVE_UNDEF;	//delete GOTO/SUB command from buffer	
+                                        }
+                                        else
+                                        {//no more iterations
+                                            Buffer[i].IP_PrgCount++; //jump to next line
+                                            Buffer[i].MotionPackage[Buffer[i].IP_Index].MovementType = MOVE_UNDEF;	//delete GOTO/SUB command from buffer
+                                            //delete loop from buffer (this is important because the same loop might be accessed later again and the counter will have to start again)
+                                            Buffer[i].SubBuffer[j].Index = 0;
+                                            Buffer[i].SubBuffer[j].Line = 0;
+                                            Buffer[i].SubBuffer[j].Counter = 0;
+                                        }
+                                        break;                                        
+                                    }
+
+                                }
+                                
+                                if (!tmpLoopFound)
+                                {//loop not found - create a new one at first available space in buffer
+                                    short tmpCreated = 0; 
+                                    for(j=0;j<MAX_SUBLEVEL;j++)
+                                    {
+                                        if (Buffer[i].MotionPackage[Buffer[i].IP_Index].MovementType == MOVE_GOTO && Buffer[i].GotoBuffer[j].Line == 0)
+                                        {
+                                            Buffer[i].GotoBuffer[j].Line = Buffer[i].IP_PrgCount;
+                                            Buffer[i].GotoBuffer[j].Counter = Buffer[i].MotionPackage[Buffer[i].IP_Index].Label.Counter-1;
+                                            Buffer[i].GotoBuffer[j].Index = 0;
+                                            tmpCreated = 1;
+                                            break;
+                                        }
+                                        else if (Buffer[i].MotionPackage[Buffer[i].IP_Index].MovementType == MOVE_SUB && Buffer[i].SubBuffer[j].Line == 0)
+                                        {
+                                            Buffer[i].SubBuffer[j].Line = Buffer[i].IP_PrgCount;
+                                            Buffer[i].SubBuffer[j].Counter = Buffer[i].MotionPackage[Buffer[i].IP_Index].Label.Counter-1;
+                                            Buffer[i].SubBuffer[j].Index = 0;
+                                            tmpCreated = 1;
+                                            break;
+                                        }
+                                    }
+                                    
+                                    Buffer[i].MotionPackage[Buffer[i].IP_Index].Label.Found = 0; //look for label to jump to
+                                    Buffer[i].MotionPackage[Buffer[i].IP_Index].Label.Index = 0;
+
+                                    //error if buffer is already full
+                                    if (!tmpCreated)
+                                    {
+                                        fRSVG[i].EStop = 1;
+                                        StoppingError[i] = ERR_IP_SUBLEVEL;
+                                        StoppingLine[i] = Buffer[i].IP_PrgCount;
+                                    }
+                                }
+                            }
+                        }
+                                
+                        else if (Buffer[i].MotionPackage[Buffer[i].IP_Index].MovementType == MOVE_END)
+                        {
+                            if (Buffer[i].IP_SubLevel == 0)
+                            {//END of main program -> stop interpreter
+                                Buffer[i].Eof = 1;
+                                Buffer[i].MotionPackage[Buffer[i].IP_Index].LineNumber = Buffer[i].IP_PrgCount;
+                            }
+                            else
+                            {//END of subprogram -> return to calling program
+                                Buffer[i].IP_PrgCount = Buffer[i].IP_ReturnIdx[Buffer[i].IP_SubLevel];
+                                Buffer[i].IP_SubLevel--;
+                                Buffer[i].MotionPackage[Buffer[i].IP_Index].MovementType = MOVE_UNDEF;	//delete END command from buffer
+                            }
+                        }
+                    
+                        else if (Buffer[i].MotionPackage[Buffer[i].IP_Index].MovementType != MOVE_UNDEF)
+                        { //found movement block -> save in buffer
+                            Buffer[i].MotionPackage[Buffer[i].IP_Index].LineNumber = Buffer[i].IP_PrgCount;
+                            strcpy(Buffer[i].MotionPackage[Buffer[i].IP_Index].BlockString,line);
+                            Buffer[i].ModalFeedrate = Buffer[i].MotionPackage[Buffer[i].IP_Index].Feedrate; //save new modal feedrate
+                            Buffer[i].ModalFeedrateType = Buffer[i].MotionPackage[Buffer[i].IP_Index].FeedrateType; //save new modal feedrate type
+                            if (Buffer[i].MotionPackage[Buffer[i].IP_Index].MovementType == MOVE_HOME)
+                            {// transform HOME into MJ P0
+                                Buffer[i].MotionPackage[Buffer[i].IP_Index].MovementType = MOVE_PTP;
+                                Buffer[i].MotionPackage[Buffer[i].IP_Index].TargetPoint = 0;
+                            }
+                            if (Buffer[i].MotionPackage[Buffer[i].IP_Index].MovementType == MOVE_TRK)
+                            { //IP error if tracking index was not programmed correctly!
+                                if (((Buffer[i].MotionPackage[Buffer[i].IP_Index].TrkIndex == 0)&&(Buffer[i].IP_TrkIndex == 0))||
+                                    ((Buffer[i].MotionPackage[Buffer[i].IP_Index].TrkIndex > 0)&&(Buffer[i].IP_TrkIndex != 0)))
+                                {
+                                    fRSVG[i].EStop = 1;
+                                    StoppingError[i] = ERR_IP_TRK_INDEX;
+                                    StoppingLine[i] = Buffer[i].IP_PrgCount;									
+                                }
+                                else
+                                {
+                                    Buffer[i].IP_TrkIndex = Buffer[i].MotionPackage[Buffer[i].IP_Index].TrkIndex;
+                                }
+                            }
+                            Buffer[i].IP_Index++;
+                            if (Buffer[i].IP_Index >= BUFFER_LENGTH)
+                            { //circular buffer
+                                Buffer[i].IP_Index = 0;
+                            }
+                            //move to next line
+                            Buffer[i].IP_PrgCount++;
+                            if ((Robot_Program[i] == 0)&&(Buffer[i].IP_PrgCount >= RING_BUFFER_SIZE)) //consider ring buffer for move_blocks
+                            {
+                                Buffer[i].IP_PrgCount -= RING_BUFFER_SIZE;
+                            }
+                        }
+                                
+                        else
+                        { //useless line (e.g. empty or comment) -> advance to next line (for move_program) or abort (for move_blocks) 
+                            if (Robot_Program[i] == 0)
+                            {
+                                Buffer[i].Eof = 1;
+                                Buffer[i].MotionPackage[Buffer[i].IP_Index].LineNumber = Buffer[i].IP_PrgCount;
+                            }
+                            else
+                            {
+                                Buffer[i].IP_PrgCount++;
+                            }
+                        }
+                    }
+                    else
+                    {// cannot read line -> end of file reached, stop interpreter here
+                        Buffer[i].Eof = 1;
+                    }
+                } //while
 
                 /* GOTO/SUB block -> look for label to jump to */
                 while(((Buffer[i].MotionPackage[Buffer[i].IP_Index].MovementType == MOVE_GOTO)||(Buffer[i].MotionPackage[Buffer[i].IP_Index].MovementType == MOVE_SUB))&&(Buffer[i].MotionPackage[Buffer[i].IP_Index].Label.Found == 0)&&(IP_LoopCount < MAX_LOOP_COUNT)&&(StoppingError[i] == 0))
@@ -1199,7 +1296,7 @@ unsigned short RobotControl(unsigned long Robots, unsigned char RobotsNumber)
                                 if (Buffer[i].MotionPackage[Buffer[i].IP_Index].MovementType == MOVE_SUB)
                                 {//increase Subroutine level and record return position for program counter
                                     Buffer[i].IP_SubLevel++;
-                                    if (Buffer[i].IP_SubLevel >= 10)
+                                    if (Buffer[i].IP_SubLevel >= MAX_SUBLEVEL)
                                     {
                                         fRSVG[i].EStop = 1;
                                         StoppingError[i] = ERR_IP_SUBLEVEL;
@@ -1207,11 +1304,34 @@ unsigned short RobotControl(unsigned long Robots, unsigned char RobotsNumber)
                                     }
                                     else
                                     {
-                                        Buffer[i].IP_ReturnIdx[Buffer[i].IP_SubLevel] = Buffer[i].IP_PrgCount+1;
+                                        Buffer[i].IP_ReturnIdx[Buffer[i].IP_SubLevel] = Buffer[i].IP_PrgCount; //return to same line in case a counter was defined
+                                    }
+                                }
+                                //save target line
+                                if (Buffer[i].MotionPackage[Buffer[i].IP_Index].MovementType == MOVE_GOTO)
+                                {
+                                    for (j=0;j<MAX_SUBLEVEL;j++)
+                                    {
+                                        if (Buffer[i].GotoBuffer[j].Line == Buffer[i].IP_PrgCount)
+                                        {
+                                            Buffer[i].GotoBuffer[j].Index = Buffer[i].MotionPackage[Buffer[i].IP_Index].Label.Index;
+                                            break;
+                                        }
+                                    }
+                                }
+                                else
+                                {
+                                    for (j=0;j<MAX_SUBLEVEL;j++)
+                                    {
+                                        if (Buffer[i].SubBuffer[j].Line == Buffer[i].IP_PrgCount)
+                                        {
+                                            Buffer[i].SubBuffer[j].Index = Buffer[i].MotionPackage[Buffer[i].IP_Index].Label.Index;
+                                            break;
+                                        }
                                     }
                                 }
                                 Buffer[i].IP_PrgCount = Buffer[i].MotionPackage[Buffer[i].IP_Index].Label.Index; //jump to new line
-                                Buffer[i].MotionPackage[Buffer[i].IP_Index].MovementType = MOVE_UNDEF;	//delete GOTO/SUB command from buffer								
+                                Buffer[i].MotionPackage[Buffer[i].IP_Index].MovementType = MOVE_UNDEF;	//delete GOTO/SUB command from buffer	
                             }
                         }
                     }
@@ -1312,27 +1432,44 @@ unsigned short RobotControl(unsigned long Robots, unsigned char RobotsNumber)
                                 }
 
 				
-                                //check that end point (plus planned tool) does not violate axes limits
+                                //check that line connecting start and end point (plus planned tool) does not violate workspace zones
+                                float tmpStartPoint[6];
+                                float tmpTargetPoint[6];
                                 if (gRobot[i]->Monitor.AxesNum < 5)
                                 {
-                                    SubFrame2D(gRobot[i]->Parameters.Tool[Buffer[i].MotionPackage[Buffer[i].PP_Index].Tool].Axes,Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.TargetPointPath,TempAxesValues);
+                                    SubFrame2D(gRobot[i]->Parameters.Tool[Buffer[i].MotionPackage[Buffer[i].PP_Index].Tool].Axes,Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartPointPath,tmpStartPoint);
+                                    SubFrame2D(gRobot[i]->Parameters.Tool[Buffer[i].MotionPackage[Buffer[i].PP_Index].Tool].Axes,Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.TargetPointPath,tmpTargetPoint);
                                 }
                                 else
                                 {
-                                    SubFrame3D(gRobot[i]->Parameters.Tool[Buffer[i].MotionPackage[Buffer[i].PP_Index].Tool].Axes,Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.TargetPointPath,0,0,0,TempAxesValues);
-                                }							
-                                for (k=0;k<gRobot[i]->Monitor.AxesNum;k++)
+                                    SubFrame3D(gRobot[i]->Parameters.Tool[Buffer[i].MotionPackage[Buffer[i].PP_Index].Tool].Axes,Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartPointPath,0,0,0,tmpStartPoint);
+                                    SubFrame3D(gRobot[i]->Parameters.Tool[Buffer[i].MotionPackage[Buffer[i].PP_Index].Tool].Axes,Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.TargetPointPath,0,0,0,tmpTargetPoint);
+                                }		
+                                
+                                //path workspace monitoring
+                                for (k=0;k<MAX_ZONE;k++)
                                 {
-                                    //check for path axes limits only if these are set (max>min)
-                                    if (((TempAxesValues[k] > gRobot[i]->Parameters.WorkspaceLimits.PositionMax[k])||(TempAxesValues[k] < gRobot[i]->Parameters.WorkspaceLimits.PositionMin[k]))&&(gRobot[i]->Parameters.WorkspaceLimits.PositionMax[k] > gRobot[i]->Parameters.WorkspaceLimits.PositionMin[k]))
-                                    {
+                                    //check for allowed and forbidden zones
+                                    if (!gRobot[i]->Parameters.Workspace[k].Type)
+                                        continue;
+                                    
+                                    unsigned short tmpInsideL1 = PointInBox(tmpStartPoint,gRobot[i]->Parameters.Workspace[k].PositionMin,gRobot[i]->Parameters.Workspace[k].PositionMax);
+                                    unsigned short tmpInsideL2 = PointInBox(tmpTargetPoint,gRobot[i]->Parameters.Workspace[k].PositionMin,gRobot[i]->Parameters.Workspace[k].PositionMax);
+                                    unsigned short tmpHitBox = LineCrossBox(tmpStartPoint,tmpTargetPoint,gRobot[i]->Parameters.Workspace[k].PositionMin,gRobot[i]->Parameters.Workspace[k].PositionMax);
+                                    if (((!tmpInsideL1 || !tmpInsideL2) && gRobot[i]->Parameters.Workspace[k].Type==ZONE_SAFE) || (tmpHitBox && gRobot[i]->Parameters.Workspace[k].Type==ZONE_FORBIDDEN))
+                                    {                   
                                         fRSVG[i].EStop = 1;
-                                        StoppingError[i] = ERR_LIMIT_X + k;
+                                        StoppingError[i] = ERR_WORKSPACE_ZONE1 + k;
                                         StoppingLine[i] = Buffer[i].MotionPackage[Buffer[i].PP_Index].LineNumber;
                                         break;
-                                    }
-                                    //check for joint axes limits								
-                                    if ((Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.TargetPointJoint[k] > gRobot[i]->Parameters.JointLimits[k].PositionPos)||(Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.TargetPointJoint[k] < gRobot[i]->Parameters.JointLimits[k].PositionNeg))
+                                    }                
+                                }            
+                                
+                                //joints workspace monitoring
+                                for (k=0;k<gRobot[i]->Monitor.AxesNum;k++)
+                                {
+                                    //check for joint axes limits - only if these are set (max>min)
+                                    if (((Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.TargetPointJoint[k] > gRobot[i]->Parameters.JointLimits[k].PositionPos)||(Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.TargetPointJoint[k] < gRobot[i]->Parameters.JointLimits[k].PositionNeg))&&(gRobot[i]->Parameters.JointLimits[k].PositionPos > gRobot[i]->Parameters.JointLimits[k].PositionNeg))
                                     {
                                         fRSVG[i].EStop = 1;
                                         StoppingError[i] = ERR_LIMIT_J1 + k;
@@ -1374,13 +1511,13 @@ unsigned short RobotControl(unsigned long Robots, unsigned char RobotsNumber)
                                 {
                                     Buffer[i].MotionPackage[Buffer[i].PP_Index].BlockLength = LineLength(Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartPointPath,Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.TargetPointPath,gRobot[i]->Monitor.AxesNum);								
                                 }
-				
 
-                                Buffer[i].MotionPackage[Buffer[i].PP_Index].BlockLengthIdeal = Buffer[i].MotionPackage[Buffer[i].PP_Index].BlockLength; //blocklengthideal does not consider round edges
-			
+                                //blocklengthideal does not consider round edges and is cartesian only!
+                                Buffer[i].MotionPackage[Buffer[i].PP_Index].BlockLengthIdeal = LineLengthCart(Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartPointPath,Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.TargetPointPath);
+
                                 /* calculate START and END direction vectors in path space */
-                                PointsToVector(Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartPointPath, Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.TargetPointPath, &Buffer[i].MotionPackage[Buffer[i].PP_Index].StartPathVector);
-                                Normalize(&Buffer[i].MotionPackage[Buffer[i].PP_Index].StartPathVector);
+                                PointsToVector(Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartPointPath, Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.TargetPointPath, Buffer[i].MotionPackage[Buffer[i].PP_Index].StartPathVector);
+                                Normalize(Buffer[i].MotionPackage[Buffer[i].PP_Index].StartPathVector);
                                 Buffer[i].MotionPackage[Buffer[i].PP_Index].EndPathVector[0] = Buffer[i].MotionPackage[Buffer[i].PP_Index].StartPathVector[0];
                                 Buffer[i].MotionPackage[Buffer[i].PP_Index].EndPathVector[1] = Buffer[i].MotionPackage[Buffer[i].PP_Index].StartPathVector[1];
                                 Buffer[i].MotionPackage[Buffer[i].PP_Index].EndPathVector[2] = Buffer[i].MotionPackage[Buffer[i].PP_Index].StartPathVector[2];
@@ -1390,10 +1527,10 @@ unsigned short RobotControl(unsigned long Robots, unsigned char RobotsNumber)
                                 // interpolate linearly to find next point (at 0.1% of total block length)
                                 for(j=0;j<gRobot[i]->Monitor.AxesNum;j++)
                                 {//note that all axes are interpolated linearly, even orientation (should not be a big issue)
-                                    TempAxesValues[j] = 0.999f * Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartPointPath[j] + 0.001f * Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.TargetPointPath[j];
+                                    tmpAxesValues[j] = 0.999f * Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartPointPath[j] + 0.001f * Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.TargetPointPath[j];
                                 }
 			
-                                Trf_Status = Transformations(&gRobot[i]->Parameters.Mechanics,TRF_INVERSE,Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartPointJoint,TempAxesValues,TempJointsValues);
+                                Trf_Status = Transformations(&gRobot[i]->Parameters.Mechanics,TRF_INVERSE,Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartPointJoint,tmpAxesValues,tmpJointsValues);
                                 if (Trf_Status != STATUS_OK)
                                 {
                                     fRSVG[i].EStop = 1;
@@ -1404,7 +1541,7 @@ unsigned short RobotControl(unsigned long Robots, unsigned char RobotsNumber)
 
                                 for (k=0;k<gRobot[i]->Monitor.AxesNum;k++)
                                 {	
-                                    Buffer[i].MotionPackage[Buffer[i].PP_Index].StartJointVector[k] = TempJointsValues[k] - Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartPointJoint[k];
+                                    Buffer[i].MotionPackage[Buffer[i].PP_Index].StartJointVector[k] = tmpJointsValues[k] - Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartPointJoint[k];
                                 }
 
                                 /* calculate END direction vector in joint space */
@@ -1412,10 +1549,10 @@ unsigned short RobotControl(unsigned long Robots, unsigned char RobotsNumber)
                                 // interpolate linearly to find previous point (at 99.9% of total block length)
                                 for(j=0;j<gRobot[i]->Monitor.AxesNum;j++)
                                 {//note that all axes are interpolated linearly, even orientation (should not be a big issue)
-                                    TempAxesValues[j] = 0.001f * Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartPointPath[j] + 0.999f * Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.TargetPointPath[j];
+                                    tmpAxesValues[j] = 0.001f * Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartPointPath[j] + 0.999f * Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.TargetPointPath[j];
                                 }
 			
-                                Trf_Status = Transformations(&gRobot[i]->Parameters.Mechanics,TRF_INVERSE,Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.TargetPointJoint,TempAxesValues,TempJointsValues);
+                                Trf_Status = Transformations(&gRobot[i]->Parameters.Mechanics,TRF_INVERSE,Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.TargetPointJoint,tmpAxesValues,tmpJointsValues);
                                 if (Trf_Status != STATUS_OK)
                                 {
                                     fRSVG[i].EStop = 1;
@@ -1426,7 +1563,7 @@ unsigned short RobotControl(unsigned long Robots, unsigned char RobotsNumber)
 
                                 for (k=0;k<gRobot[i]->Monitor.AxesNum;k++)
                                 {	
-                                    Buffer[i].MotionPackage[Buffer[i].PP_Index].EndJointVector[k] = Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.TargetPointJoint[k] - TempJointsValues[k];
+                                    Buffer[i].MotionPackage[Buffer[i].PP_Index].EndJointVector[k] = Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.TargetPointJoint[k] - tmpJointsValues[k];
                                 }
 
 
@@ -1454,84 +1591,43 @@ unsigned short RobotControl(unsigned long Robots, unsigned char RobotsNumber)
                                 else
                                 {// Rxxx was programmed in previous block -> transition is tangential -> evaluate round edge parameters
                                     Buffer[i].MotionPackage[Buffer[i].PP_Index].TransitionAngle = 0;
-					
-                                    float u[5];
-				
-                                    //limit radius size to half of the block length
-                                    Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartEdge.Radius = min(Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].Round,Buffer[i].MotionPackage[Buffer[i].PP_Index].BlockLengthIdeal/2.0f);
-                                    Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].Path.EndEdge.Radius = min(Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].Round,Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].BlockLengthIdeal/2.0f);
 				
                                     //calculate control points
-                                    if ((Buffer[i].MotionPackage[Buffer[i].PP_Index].BlockLength != 0)&&(Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].BlockLength != 0))
+                                    RoundEdgePoints(&Buffer[i].MotionPackage[Buffer[i].PP_Index], &Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev],gRobot[i]->Monitor.AxesNum,&gRobot[i]->Parameters.Mechanics);
+                                
+                                    //modify end path vector of previous block if it was a circle so that tangential angle is calculated correctly
+                                    if (Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].MovementType == MOVE_CIRCLE)
                                     {
-                                        //P[0] is R before transition
-                                        u[0] = Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].Path.EndEdge.Radius / Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].BlockLengthIdeal;
-                                        //P[1] is R/2 before transition							
-                                        u[1] = Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].Path.EndEdge.Radius / 2.0f / Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].BlockLengthIdeal;
-                                        //P[2] is transition							
-                                        u[2] = 0;
-                                        //P[3] is R/2 after transition
-                                        u[3] = Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartEdge.Radius / 2.0f / Buffer[i].MotionPackage[Buffer[i].PP_Index].BlockLengthIdeal;
-                                        //P[4] is R after transition
-                                        u[4] = Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartEdge.Radius / Buffer[i].MotionPackage[Buffer[i].PP_Index].BlockLengthIdeal;										
-
-                                        for(j=0;j<gRobot[i]->Monitor.AxesNum;j++)
-                                        {
-                                            Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartEdge.CtrlPoint[0].Axes[j] = u[0] * Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].Path.StartPointPath[j] + (1-u[0]) * Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].Path.TargetPointPath[j];
-                                            Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartEdge.CtrlPoint[1].Axes[j] = u[1] * Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].Path.StartPointPath[j] + (1-u[1]) * Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].Path.TargetPointPath[j];
-                                            Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartEdge.CtrlPoint[2].Axes[j] = Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartPointPath[j];
-                                            Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartEdge.CtrlPoint[3].Axes[j] = (1-u[3]) * Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartPointPath[j] + u[3] * Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.TargetPointPath[j];
-                                            Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartEdge.CtrlPoint[4].Axes[j] = (1-u[4]) * Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartPointPath[j] + u[4] * Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.TargetPointPath[j];
-                                        }
-
-                                        //calculate start edge length (only part included in current block) and previous block's end edge length (only part included in previous block)
-                                        Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartEdge.Length = BezierLengthHalf2(Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartEdge.CtrlPoint,gRobot[i]->Monitor.AxesNum,BEZIER_QUARTIC);
-                                        Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].Path.EndEdge.Length = BezierLengthHalf1(Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartEdge.CtrlPoint,gRobot[i]->Monitor.AxesNum,BEZIER_QUARTIC);
-
+                                        float tmpCrossVersor[3];
+                                        PointsToVector(Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].Path.Center,Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].Path.EndEdge.CtrlPoint[0].Axes,tmpCrossVersor);
+                                        CrossProduct(Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].Path.Normal,tmpCrossVersor,Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].EndPathVector);
+                                        Normalize(Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].EndPathVector);
+                                        Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].Path.EndEdge.tangAngleStart = atan2d(Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].EndPathVector[1],Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].EndPathVector[0]);
                                     }
-                                    else //there is no round edge -> all points are coincident at transition
-                                    {									
-                                        for(j=0;j<gRobot[i]->Monitor.AxesNum;j++)
-                                        {
-                                            Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartEdge.CtrlPoint[0].Axes[j] = Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartPointPath[j];
-                                            Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartEdge.CtrlPoint[1].Axes[j] = Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartPointPath[j];
-                                            Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartEdge.CtrlPoint[2].Axes[j] = Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartPointPath[j];
-                                            Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartEdge.CtrlPoint[3].Axes[j] = Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartPointPath[j];
-                                            Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartEdge.CtrlPoint[4].Axes[j] = Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartPointPath[j];
-                                        }
 
-                                        Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartEdge.Length = 0;
-                                        Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartEdge.Radius = 0;
-                                        Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].Path.EndEdge.Length = 0;										
-                                        Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].Path.EndEdge.Radius = 0;										
-
+                                    //modify end edge quaterion of previous block if it was a PTP
+                                    if (Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].MovementType == MOVE_PTP)
+                                    {
+                                        //calculate quaternion of end edge
+                                        EulerToQuat(Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].Path.EndEdge.CtrlPoint[0].Axes[3],Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].Path.EndEdge.CtrlPoint[0].Axes[4],Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].Path.EndEdge.CtrlPoint[0].Axes[5], &Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].Path.EndEdge.EdgeQuat);
+                                        Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].Path.EndEdge.QuatAngle = AngleBetweenQuat(Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].Path.EndEdge.EdgeQuat,&Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].Path.EndQuat);
                                     }
-				
-                                    //copy points to previous block
-                                    Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].Path.EndEdge.CtrlPoint[0] = Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartEdge.CtrlPoint[0];
-                                    Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].Path.EndEdge.CtrlPoint[1] = Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartEdge.CtrlPoint[1];
-                                    Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].Path.EndEdge.CtrlPoint[2] = Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartEdge.CtrlPoint[2];
-                                    Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].Path.EndEdge.CtrlPoint[3] = Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartEdge.CtrlPoint[3];
-                                    Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].Path.EndEdge.CtrlPoint[4] = Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartEdge.CtrlPoint[4];
-
-                                    // adjust length of current block considering start edge
-                                    Buffer[i].MotionPackage[Buffer[i].PP_Index].BlockLength += (Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartEdge.Length - Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartEdge.Radius);
-
-                                    //adjust length of previous block considering end edge
-                                    Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].BlockLength += (Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].Path.EndEdge.Length - Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].Path.EndEdge.Radius);
 
                                 }
-                                
+                              
                                 //calculate initial and final tangential angle of current movement
                                 Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartEdge.tangAngleEnd = atan2d(Buffer[i].MotionPackage[Buffer[i].PP_Index].StartPathVector[1],Buffer[i].MotionPackage[Buffer[i].PP_Index].StartPathVector[0]);
                                 Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.EndEdge.tangAngleStart = atan2d(Buffer[i].MotionPackage[Buffer[i].PP_Index].EndPathVector[1],Buffer[i].MotionPackage[Buffer[i].PP_Index].EndPathVector[0]);
-                                //remember final tangential angle of previous movement
+                                //recall final tangential angle of previous movement
                                 Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartEdge.tangAngleStart = Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].Path.EndEdge.tangAngleStart;
                                 Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].Path.EndEdge.tangAngleEnd = Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartEdge.tangAngleEnd;
                                 
                                 /* replan end of previous block if it was a spline */
                                 if (Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].MovementType == MOVE_SPLINE)
                                 {
+                                
+                                    Buffer[i].MotionPackage[Buffer[i].PP_Index].TransitionAngle = 0;
+                                
                                     for(j=0;j<3;j++)
                                     {
                                         //end tangent of spline
@@ -1543,6 +1639,16 @@ unsigned short RobotControl(unsigned long Robots, unsigned char RobotsNumber)
                                     
                                     //spline length
                                     Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].BlockLength = BezierLength(Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].Path.Spline.CtrlPoint,BEZIER_XYZ,BEZIER_CUBIC);
+                                
+                                    //path workspace monitoring of previous spline block
+                                    tmpViolate = WorkspaceMonitor(MOVE_SPLINE,&Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].Path,gRobot[i]->Parameters.Tool[Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].Tool].Axes,gRobot[i]->Parameters.Workspace,gRobot[i]->Monitor.AxesNum,0);
+                                    if (tmpViolate)
+                                    {
+                                        fRSVG[i].EStop = 1;
+                                        StoppingError[i] = ERR_WORKSPACE_ZONE1 + (tmpViolate-1);
+                                        StoppingLine[i] = Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].LineNumber;                                
+                                    }
+                                
                                 }
 				
                                 //limit feedrate: time to complete block cannot exceed time needed from joints to reach end position
@@ -1625,28 +1731,57 @@ unsigned short RobotControl(unsigned long Robots, unsigned char RobotsNumber)
                                     break;
                                 }
 
-				
-                                //check that end point (plus planned tool) does not violate axes limits
-                                if (gRobot[i]->Monitor.AxesNum < 5)
+                                //use quaternions for 6ax robots
+                                if (gRobot[i]->Monitor.AxesNum == 6)
+                                {//convert Euler angles into quaternions and calculate angle between them (in radians)
+                                    EulerToQuat(Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartPointPath[3],Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartPointPath[4],Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartPointPath[5], &Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartQuat);
+                                    EulerToQuat(Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.TargetPointPath[3],Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.TargetPointPath[4],Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.TargetPointPath[5], &Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.EndQuat);
+                                    Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.QuatAngle = AngleBetweenQuat(Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartQuat,&Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.EndQuat);
+                                }
+                                else  //TODO - this is only valid for 4 axes robots!
                                 {
-                                    SubFrame2D(gRobot[i]->Parameters.Tool[Buffer[i].MotionPackage[Buffer[i].PP_Index].Tool].Axes,Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.TargetPointPath,TempAxesValues);
+                                    Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.QuatAngle = (Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.TargetPointPath[3] - Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartPointPath[3]) * PI / 180.0f ; //quatang is in rad!
+                                }
+                                
+                                //calculate block length according to selected feedrate configuration
+                                if (Buffer[i].MotionPackage[Buffer[i].PP_Index].FeedrateType == FEED_CART)
+                                {
+                                    Buffer[i].MotionPackage[Buffer[i].PP_Index].BlockLength = PTPLength(&Buffer[i].MotionPackage[Buffer[i].PP_Index].Path, gRobot[i]->Monitor.AxesNum, &gRobot[i]->Parameters.Mechanics);
+					
+                                    //fall back on default configuration if there is no cartesian displacement
+                                    if (Buffer[i].MotionPackage[Buffer[i].PP_Index].BlockLength < TRF_EPSILON)
+                                        Buffer[i].MotionPackage[Buffer[i].PP_Index].BlockLength = LineLength(Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartPointJoint,Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.TargetPointJoint,gRobot[i]->Monitor.AxesNum);
+                                }
+                                else if (Buffer[i].MotionPackage[Buffer[i].PP_Index].FeedrateType == FEED_ANG)
+                                {
+                                    Buffer[i].MotionPackage[Buffer[i].PP_Index].BlockLength = fabs(Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.QuatAngle) * 180.0f / PI; //blocklength in deg								
+
+                                    //fall back on default configuration if there is no angular displacement
+                                    if (Buffer[i].MotionPackage[Buffer[i].PP_Index].BlockLength < TRF_EPSILON)
+                                        Buffer[i].MotionPackage[Buffer[i].PP_Index].BlockLength = LineLength(Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartPointJoint,Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.TargetPointJoint,gRobot[i]->Monitor.AxesNum);
                                 }
                                 else
                                 {
-                                    SubFrame3D(gRobot[i]->Parameters.Tool[Buffer[i].MotionPackage[Buffer[i].PP_Index].Tool].Axes,Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.TargetPointPath,0,0,0,TempAxesValues);
-                                }							
+                                    Buffer[i].MotionPackage[Buffer[i].PP_Index].BlockLength = LineLength(Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartPointJoint,Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.TargetPointJoint,gRobot[i]->Monitor.AxesNum);
+                                }
+                                                
+                                //blocklengthideal does not consider round edges and is cartesian only!
+                                Buffer[i].MotionPackage[Buffer[i].PP_Index].BlockLengthIdeal = PTPLength(&Buffer[i].MotionPackage[Buffer[i].PP_Index].Path, gRobot[i]->Monitor.AxesNum, &gRobot[i]->Parameters.Mechanics);
+     
+                                //path workspace monitoring
+                                tmpViolate = WorkspaceMonitor(MOVE_PTP,&Buffer[i].MotionPackage[Buffer[i].PP_Index].Path,gRobot[i]->Parameters.Tool[Buffer[i].MotionPackage[Buffer[i].PP_Index].Tool].Axes,gRobot[i]->Parameters.Workspace,gRobot[i]->Monitor.AxesNum,&gRobot[i]->Parameters.Mechanics);
+                                if (tmpViolate)
+                                {
+                                    fRSVG[i].EStop = 1;
+                                    StoppingError[i] = ERR_WORKSPACE_ZONE1 + (tmpViolate-1);
+                                    StoppingLine[i] = Buffer[i].MotionPackage[Buffer[i].PP_Index].LineNumber;                                
+                                }
+                            
+                                //joint monitoring
                                 for (k=0;k<gRobot[i]->Monitor.AxesNum;k++)
                                 {	
-                                    //check for path axes limits only if these are set (max>min)
-                                    if (((TempAxesValues[k] > gRobot[i]->Parameters.WorkspaceLimits.PositionMax[k])||(TempAxesValues[k] < gRobot[i]->Parameters.WorkspaceLimits.PositionMin[k]))&&(gRobot[i]->Parameters.WorkspaceLimits.PositionMax[k] > gRobot[i]->Parameters.WorkspaceLimits.PositionMin[k]))
-                                    {
-                                        fRSVG[i].EStop = 1;
-                                        StoppingError[i] = ERR_LIMIT_X + k;
-                                        StoppingLine[i] = Buffer[i].MotionPackage[Buffer[i].PP_Index].LineNumber;
-                                        break;
-                                    }
-                                    //check for joint axes limits
-                                    if ((Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.TargetPointJoint[k] > gRobot[i]->Parameters.JointLimits[k].PositionPos)||(Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.TargetPointJoint[k] < gRobot[i]->Parameters.JointLimits[k].PositionNeg))
+                                    //check for joint axes limits - only if these are set (max>min)
+                                    if (((Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.TargetPointJoint[k] > gRobot[i]->Parameters.JointLimits[k].PositionPos)||(Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.TargetPointJoint[k] < gRobot[i]->Parameters.JointLimits[k].PositionNeg))&&(gRobot[i]->Parameters.JointLimits[k].PositionPos > gRobot[i]->Parameters.JointLimits[k].PositionNeg))
                                     {
                                         fRSVG[i].EStop = 1;
                                         StoppingError[i] = ERR_LIMIT_J1 + k;
@@ -1655,17 +1790,15 @@ unsigned short RobotControl(unsigned long Robots, unsigned char RobotsNumber)
                                     }
                                 }							
 		
-                                Buffer[i].MotionPackage[Buffer[i].PP_Index].BlockLength = LineLength(Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartPointJoint,Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.TargetPointJoint,gRobot[i]->Monitor.AxesNum);
-
                                 /* calculate START and END direction vectors in path space */
                                 
                                 // interpolate linearly to find next point (at 0.1% of total block length)
                                 for(j=0;j<gRobot[i]->Monitor.AxesNum;j++)
                                 {
-                                    TempAxesValues[j] = 0.999f * Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartPointJoint[j] + 0.001f * Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.TargetPointJoint[j];
+                                    tmpAxesValues[j] = 0.999f * Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartPointJoint[j] + 0.001f * Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.TargetPointJoint[j];
                                 }
 							
-                                Trf_Status = Transformations(&gRobot[i]->Parameters.Mechanics,TRF_DIRECT,TempAxesValues,Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartPointPath,TempPathValues);
+                                Trf_Status = Transformations(&gRobot[i]->Parameters.Mechanics,TRF_DIRECT,tmpAxesValues,Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartPointPath,tmpPathValues);
                                 if (Trf_Status != STATUS_OK)
                                 {
                                     fRSVG[i].EStop = 1;
@@ -1676,17 +1809,17 @@ unsigned short RobotControl(unsigned long Robots, unsigned char RobotsNumber)
 	
                                 for (k=0;k<3;k++)
                                 {	
-                                    Buffer[i].MotionPackage[Buffer[i].PP_Index].StartPathVector[k] = TempPathValues[k] - Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartPointPath[k];
+                                    Buffer[i].MotionPackage[Buffer[i].PP_Index].StartPathVector[k] = tmpPathValues[k] - Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartPointPath[k];
                                 }
-                                Normalize(&Buffer[i].MotionPackage[Buffer[i].PP_Index].StartPathVector);
+                                Normalize(Buffer[i].MotionPackage[Buffer[i].PP_Index].StartPathVector);
 
                                 // interpolate linearly to find previous point (at 99.9% of total block length)
                                 for(j=0;j<gRobot[i]->Monitor.AxesNum;j++)
                                 {
-                                    TempAxesValues[j] = 0.001f * Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartPointJoint[j] + 0.999f * Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.TargetPointJoint[j];
+                                    tmpAxesValues[j] = 0.001f * Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartPointJoint[j] + 0.999f * Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.TargetPointJoint[j];
                                 }
 							
-                                Trf_Status = Transformations(&gRobot[i]->Parameters.Mechanics,TRF_DIRECT,TempAxesValues,Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.TargetPointPath,TempPathValues);
+                                Trf_Status = Transformations(&gRobot[i]->Parameters.Mechanics,TRF_DIRECT,tmpAxesValues,Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.TargetPointPath,tmpPathValues);
                                 if (Trf_Status != STATUS_OK)
                                 {
                                     fRSVG[i].EStop = 1;
@@ -1697,9 +1830,9 @@ unsigned short RobotControl(unsigned long Robots, unsigned char RobotsNumber)
 	
                                 for (k=0;k<3;k++)
                                 {	
-                                    Buffer[i].MotionPackage[Buffer[i].PP_Index].EndPathVector[k] = Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.TargetPointPath[k] - TempPathValues[k];
+                                    Buffer[i].MotionPackage[Buffer[i].PP_Index].EndPathVector[k] = Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.TargetPointPath[k] - tmpPathValues[k];
                                 }
-                                Normalize(&Buffer[i].MotionPackage[Buffer[i].PP_Index].EndPathVector);
+                                Normalize(Buffer[i].MotionPackage[Buffer[i].PP_Index].EndPathVector);
 
                                 /* calculate start and end direction vector in joint space */
                                 /* they are actually the same vector because a PTP is a linear interpolation in the joint space */
@@ -1708,6 +1841,10 @@ unsigned short RobotControl(unsigned long Robots, unsigned char RobotsNumber)
                                     Buffer[i].MotionPackage[Buffer[i].PP_Index].StartJointVector[k] = Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.TargetPointJoint[k] - Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartPointJoint[k];
                                     Buffer[i].MotionPackage[Buffer[i].PP_Index].EndJointVector[k] = Buffer[i].MotionPackage[Buffer[i].PP_Index].StartJointVector[k];
                                 }
+
+                                /* set default values for limit edge points -> used in EXEC even if no round edge is programmed */
+                                memcpy(&Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartEdge.CtrlPoint[6].Axes,Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartPointJoint,24);
+                                memcpy(&Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.EndEdge.CtrlPoint[5].Axes,Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.TargetPointJoint,24);
 
                                 /* calculate angle from previous block*/
 				
@@ -1721,16 +1858,41 @@ unsigned short RobotControl(unsigned long Robots, unsigned char RobotsNumber)
                                 }
                                 else
                                 {// Rxxx was programmed in previous block -> transition is tangential
-                                    Buffer[i].MotionPackage[Buffer[i].PP_Index].TransitionAngle = 0;							
+                                    Buffer[i].MotionPackage[Buffer[i].PP_Index].TransitionAngle = 0;	
+
+                                    //calculate control points
+                                    RoundEdgePoints(&Buffer[i].MotionPackage[Buffer[i].PP_Index], &Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev],gRobot[i]->Monitor.AxesNum,&gRobot[i]->Parameters.Mechanics);
+
+                                    //calculate quaternion of start edge
+                                    EulerToQuat(Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartEdge.CtrlPoint[4].Axes[3],Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartEdge.CtrlPoint[4].Axes[4],Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartEdge.CtrlPoint[4].Axes[5], &Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartEdge.EdgeQuat);
+                                    Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartEdge.QuatAngle = AngleBetweenQuat(Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartQuat,&Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartEdge.EdgeQuat);
+                                    
+                                    //modify end path vector of previous block if it was a circle so that tangential angle is calculated correctly
+                                    if (Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].MovementType == MOVE_CIRCLE)
+                                    {
+                                        float tmpCrossVersor[3];
+                                        PointsToVector(Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].Path.Center,Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].Path.EndEdge.CtrlPoint[0].Axes,tmpCrossVersor);
+                                        CrossProduct(Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].Path.Normal,tmpCrossVersor,Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].EndPathVector);
+                                        Normalize(Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].EndPathVector);
+                                        Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].Path.EndEdge.tangAngleStart = atan2d(Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].EndPathVector[1],Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].EndPathVector[0]);
+                                    }
+
+                                    //modify end edge quaterion of previous block if it was a PTP
+                                    if (Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].MovementType == MOVE_PTP)
+                                    {
+                                        //calculate quaternion of end edge
+                                        EulerToQuat(Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].Path.EndEdge.CtrlPoint[0].Axes[3],Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].Path.EndEdge.CtrlPoint[0].Axes[4],Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].Path.EndEdge.CtrlPoint[0].Axes[5], &Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].Path.EndEdge.EdgeQuat);
+                                        Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].Path.EndEdge.QuatAngle = AngleBetweenQuat(Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].Path.EndEdge.EdgeQuat,&Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].Path.EndQuat);
+                                    }
+
                                 }
 				
-                                /* round edge not available yet for PTP */
-                                if (Buffer[i].MotionPackage[Buffer[i].PP_Index].Round > 0)
-                                    Buffer[i].MotionPackage[Buffer[i].PP_Index].Round = -1;
-
                                 /* replan end of previous block if it was a spline */
                                 if (Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].MovementType == MOVE_SPLINE)
                                 {
+                                
+                                    Buffer[i].MotionPackage[Buffer[i].PP_Index].TransitionAngle = 0;
+                                
                                     for(j=0;j<3;j++)
                                     {
                                         //end tangent of spline
@@ -1742,6 +1904,16 @@ unsigned short RobotControl(unsigned long Robots, unsigned char RobotsNumber)
                                         
                                     //spline length
                                     Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].BlockLength = BezierLength(Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].Path.Spline.CtrlPoint,BEZIER_XYZ,BEZIER_CUBIC);
+
+                                    //path workspace monitoring of previous spline block
+                                    tmpViolate = WorkspaceMonitor(MOVE_SPLINE,&Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].Path,gRobot[i]->Parameters.Tool[Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].Tool].Axes,gRobot[i]->Parameters.Workspace,gRobot[i]->Monitor.AxesNum,0);
+                                    if (tmpViolate)
+                                    {
+                                        fRSVG[i].EStop = 1;
+                                        StoppingError[i] = ERR_WORKSPACE_ZONE1 + (tmpViolate-1);
+                                        StoppingLine[i] = Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].LineNumber;                                
+                                    }
+                                
                                 }		
 
                                 //limit feedrate: time to complete block cannot exceed time needed from joints to reach end position
@@ -1869,6 +2041,7 @@ unsigned short RobotControl(unsigned long Robots, unsigned char RobotsNumber)
                                 }
                                 
                                 //rotation angle defined by user -> calculate new target point (position and orientation)
+                                // TODO - add handling of negative angles (invert rotation direction)
                                 if(Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.RotAngle > 0)
                                 {
                                     //simplify notation
@@ -1950,7 +2123,7 @@ unsigned short RobotControl(unsigned long Robots, unsigned char RobotsNumber)
                                         else
                                         {
                                             float tmp_u = (u-Circle->uM)/(1-Circle->uM);
-                                            Slerp(Circle->MiddleQuat,Circle->EndQuat,&tmpQuat,Circle->QuatAngle2,tmp_u); //TODO check if Slerp works with tmp_u>1
+                                            Slerp(Circle->MiddleQuat,Circle->EndQuat,&tmpQuat,Circle->QuatAngle2,tmp_u); //Slerp works also with tmp_u>1
                                             QuatToEuler(tmpQuat,Circle->TargetPointPath[3],Circle->TargetPointPath[4],Circle->TargetPointPath[5],&tmpA,&tmpB,&tmpC);
                                             tmpTargetPoint[3] = tmpA;
                                             tmpTargetPoint[4] = tmpB;
@@ -1994,26 +2167,21 @@ unsigned short RobotControl(unsigned long Robots, unsigned char RobotsNumber)
                                 
                                 //note that Circle was a temporary pointer to Buffer[i].MotionPackage[Buffer[i].PP_Index].Path, so all the Buffer values are already updated here!
 
-                                //check that middle point (plus planned tool) does not violate path limits
-                                if (gRobot[i]->Monitor.AxesNum < 5)
+                                //path workspace monitoring
+                                tmpViolate = WorkspaceMonitor(MOVE_CIRCLE,&Buffer[i].MotionPackage[Buffer[i].PP_Index].Path,gRobot[i]->Parameters.Tool[Buffer[i].MotionPackage[Buffer[i].PP_Index].Tool].Axes,gRobot[i]->Parameters.Workspace,gRobot[i]->Monitor.AxesNum,0);
+                                if (tmpViolate)
                                 {
-                                    SubFrame2D(gRobot[i]->Parameters.Tool[Buffer[i].MotionPackage[Buffer[i].PP_Index].Tool].Axes,Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.MiddlePointPath,TempAxesValues);
+                                    fRSVG[i].EStop = 1;
+                                    StoppingError[i] = ERR_WORKSPACE_ZONE1 + (tmpViolate-1);
+                                    StoppingLine[i] = Buffer[i].MotionPackage[Buffer[i].PP_Index].LineNumber;                                
                                 }
-                                else
-                                {
-                                    SubFrame3D(gRobot[i]->Parameters.Tool[Buffer[i].MotionPackage[Buffer[i].PP_Index].Tool].Axes,Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.MiddlePointPath,0,0,0,TempAxesValues);
-                                }							
+                                
+                                //check for joint axes limits at middle and end point of circle - only if limits are set (max>min)								
                                 for (k=0;k<gRobot[i]->Monitor.AxesNum;k++)
-                                {	//check for path axes limits only if these are set (max>min)
-                                    if (((TempAxesValues[k] > gRobot[i]->Parameters.WorkspaceLimits.PositionMax[k])||(TempAxesValues[k] < gRobot[i]->Parameters.WorkspaceLimits.PositionMin[k]))&&(gRobot[i]->Parameters.WorkspaceLimits.PositionMax[k] > gRobot[i]->Parameters.WorkspaceLimits.PositionMin[k]))
-                                    {
-                                        fRSVG[i].EStop = 1;
-                                        StoppingError[i] = ERR_LIMIT_X + k;
-                                        StoppingLine[i] = Buffer[i].MotionPackage[Buffer[i].PP_Index].LineNumber;
-                                        break;
-                                    }
-                                    //check for joint axes limits								
-                                    if ((Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.MiddlePointJoint[k] > gRobot[i]->Parameters.JointLimits[k].PositionPos)||(Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.MiddlePointJoint[k] < gRobot[i]->Parameters.JointLimits[k].PositionNeg))
+                                {	
+                                    if (((Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.MiddlePointJoint[k] > gRobot[i]->Parameters.JointLimits[k].PositionPos) || (Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.MiddlePointJoint[k] < gRobot[i]->Parameters.JointLimits[k].PositionNeg) ||
+                                        (Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.TargetPointJoint[k] > gRobot[i]->Parameters.JointLimits[k].PositionPos) || (Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.TargetPointJoint[k] < gRobot[i]->Parameters.JointLimits[k].PositionNeg))
+                                        &&(gRobot[i]->Parameters.JointLimits[k].PositionPos > gRobot[i]->Parameters.JointLimits[k].PositionNeg))
                                     {
                                         fRSVG[i].EStop = 1;
                                         StoppingError[i] = ERR_LIMIT_J1 + k;
@@ -2021,34 +2189,6 @@ unsigned short RobotControl(unsigned long Robots, unsigned char RobotsNumber)
                                         break;
                                     }
                                 }							
-                                						
-                                //check that end point (plus planned tool) does not violate path limits
-                                if (gRobot[i]->Monitor.AxesNum < 5)
-                                {
-                                    SubFrame2D(gRobot[i]->Parameters.Tool[Buffer[i].MotionPackage[Buffer[i].PP_Index].Tool].Axes,Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.TargetPointPath,TempAxesValues);
-                                }
-                                else
-                                {
-                                    SubFrame3D(gRobot[i]->Parameters.Tool[Buffer[i].MotionPackage[Buffer[i].PP_Index].Tool].Axes,Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.TargetPointPath,0,0,0,TempAxesValues);
-                                }							
-                                for (k=0;k<gRobot[i]->Monitor.AxesNum;k++)
-                                {	//check for path axes limits only if these are set (max>min)
-                                    if (((TempAxesValues[k] > gRobot[i]->Parameters.WorkspaceLimits.PositionMax[k])||(TempAxesValues[k] < gRobot[i]->Parameters.WorkspaceLimits.PositionMin[k]))&&(gRobot[i]->Parameters.WorkspaceLimits.PositionMax[k] > gRobot[i]->Parameters.WorkspaceLimits.PositionMin[k]))
-                                    {
-                                        fRSVG[i].EStop = 1;
-                                        StoppingError[i] = ERR_LIMIT_X + k;
-                                        StoppingLine[i] = Buffer[i].MotionPackage[Buffer[i].PP_Index].LineNumber;
-                                        break;
-                                    }
-                                    //check for joint axes limits								
-                                    if ((Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.TargetPointJoint[k] > gRobot[i]->Parameters.JointLimits[k].PositionPos)||(Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.TargetPointJoint[k] < gRobot[i]->Parameters.JointLimits[k].PositionNeg))
-                                    {
-                                        fRSVG[i].EStop = 1;
-                                        StoppingError[i] = ERR_LIMIT_J1 + k;
-                                        StoppingLine[i] = Buffer[i].MotionPackage[Buffer[i].PP_Index].LineNumber;
-                                        break;
-                                    }
-                                }							                                
                                 
                                 //use quaternions for 6ax robots
                                 if (gRobot[i]->Monitor.AxesNum == 6)
@@ -2099,6 +2239,9 @@ unsigned short RobotControl(unsigned long Robots, unsigned char RobotsNumber)
                                     break;								
                                 }
 
+                                //blocklengthideal does not consider round edges and is cartesian only!
+                                Buffer[i].MotionPackage[Buffer[i].PP_Index].BlockLengthIdeal = Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.Length;
+                                
                                 /* calculate START and END direction vectors in path space */
 
                                 for(j=0;j<3;j++)
@@ -2107,9 +2250,9 @@ unsigned short RobotControl(unsigned long Robots, unsigned char RobotsNumber)
                                 }
                                                                       
                                 float tmpEndVersor[3];
-                                PointsToVector(Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.Center,Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.TargetPointPath,&tmpEndVersor);
-                                CrossProduct(Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.Normal,tmpEndVersor,&Buffer[i].MotionPackage[Buffer[i].PP_Index].EndPathVector);
-                                Normalize(&Buffer[i].MotionPackage[Buffer[i].PP_Index].EndPathVector);
+                                PointsToVector(Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.Center,Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.TargetPointPath,tmpEndVersor);
+                                CrossProduct(Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.Normal,tmpEndVersor,Buffer[i].MotionPackage[Buffer[i].PP_Index].EndPathVector);
+                                Normalize(Buffer[i].MotionPackage[Buffer[i].PP_Index].EndPathVector);
                                 
                                 /* calculate START direction vector in joint space */
 
@@ -2117,14 +2260,14 @@ unsigned short RobotControl(unsigned long Robots, unsigned char RobotsNumber)
                                 for(j=0;j<3;j++)
                                 {//X,Y,Z on circle
                                     //P = C + R cos(t) U + R sin(t) V
-                                    TempAxesValues[j] = Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.Center[j] + Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.Radius * cos(0.001f * Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.Length/Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.Radius) * Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartVersor[j] + Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.Radius * sin(0.001f * Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.Length/Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.Radius) * Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.CrossVersor[j];
+                                    tmpAxesValues[j] = Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.Center[j] + Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.Radius * cos(0.001f * Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.Length/Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.Radius) * Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartVersor[j] + Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.Radius * sin(0.001f * Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.Length/Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.Radius) * Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.CrossVersor[j];
                                 }
                                 for(j=3;j<6;j++)
                                 {
-                                    TempAxesValues[j] = 0.999f * Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartPointPath[j] + 0.001f * Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.TargetPointPath[j];
+                                    tmpAxesValues[j] = 0.999f * Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartPointPath[j] + 0.001f * Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.TargetPointPath[j];
                                 }
 							
-                                Trf_Status = Transformations(&gRobot[i]->Parameters.Mechanics,TRF_INVERSE,Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartPointJoint,TempAxesValues,TempJointsValues);
+                                Trf_Status = Transformations(&gRobot[i]->Parameters.Mechanics,TRF_INVERSE,Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartPointJoint,tmpAxesValues,tmpJointsValues);
                                 if (Trf_Status != STATUS_OK)
                                 {
                                     fRSVG[i].EStop = 1;
@@ -2135,7 +2278,7 @@ unsigned short RobotControl(unsigned long Robots, unsigned char RobotsNumber)
 
                                 for (k=0;k<gRobot[i]->Monitor.AxesNum;k++)
                                 {	
-                                    Buffer[i].MotionPackage[Buffer[i].PP_Index].StartJointVector[k] = TempJointsValues[k] - Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartPointJoint[k];
+                                    Buffer[i].MotionPackage[Buffer[i].PP_Index].StartJointVector[k] = tmpJointsValues[k] - Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartPointJoint[k];
                                 }
 
 
@@ -2145,14 +2288,14 @@ unsigned short RobotControl(unsigned long Robots, unsigned char RobotsNumber)
                                 for(j=0;j<3;j++)
                                 {//X,Y,Z on circle
                                     //P = C + R cos(t) U + R sin(t) V
-                                    TempAxesValues[j] = Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.Center[j] + Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.Radius * cos(0.999f * Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.Length/Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.Radius) * Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartVersor[j] + Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.Radius * sin(0.999f * Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.Length/Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.Radius) * Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.CrossVersor[j];
+                                    tmpAxesValues[j] = Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.Center[j] + Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.Radius * cos(0.999f * Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.Length/Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.Radius) * Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartVersor[j] + Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.Radius * sin(0.999f * Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.Length/Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.Radius) * Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.CrossVersor[j];
                                 }
                                 for(j=3;j<6;j++)
                                 {
-                                    TempAxesValues[j] = 0.001f * Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartPointPath[j] + 0.999f * Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.TargetPointPath[j];
+                                    tmpAxesValues[j] = 0.001f * Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartPointPath[j] + 0.999f * Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.TargetPointPath[j];
                                 }
 							
-                                Trf_Status = Transformations(&gRobot[i]->Parameters.Mechanics,TRF_INVERSE,Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartPointJoint,TempAxesValues,TempJointsValues);
+                                Trf_Status = Transformations(&gRobot[i]->Parameters.Mechanics,TRF_INVERSE,Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartPointJoint,tmpAxesValues,tmpJointsValues);
                                 if (Trf_Status != STATUS_OK)
                                 {
                                     fRSVG[i].EStop = 1;
@@ -2163,7 +2306,7 @@ unsigned short RobotControl(unsigned long Robots, unsigned char RobotsNumber)
 
                                 for (k=0;k<gRobot[i]->Monitor.AxesNum;k++)
                                 {	
-                                    Buffer[i].MotionPackage[Buffer[i].PP_Index].EndJointVector[k] = Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartPointJoint[k] - TempJointsValues[k];
+                                    Buffer[i].MotionPackage[Buffer[i].PP_Index].EndJointVector[k] = Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartPointJoint[k] - tmpJointsValues[k];
                                 }
 
                                 
@@ -2180,16 +2323,48 @@ unsigned short RobotControl(unsigned long Robots, unsigned char RobotsNumber)
                                 else
                                 {// Rxxx was programmed in previous block -> transition is tangential
                                     Buffer[i].MotionPackage[Buffer[i].PP_Index].TransitionAngle = 0;
-                                }
-								
-                                /* round edge not available for circle yet */
-                                if (Buffer[i].MotionPackage[Buffer[i].PP_Index].Round > 0)
-                                    Buffer[i].MotionPackage[Buffer[i].PP_Index].Round = -1;
+                                
+                                    //calculate control points
+                                    RoundEdgePoints(&Buffer[i].MotionPackage[Buffer[i].PP_Index], &Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev],gRobot[i]->Monitor.AxesNum,&gRobot[i]->Parameters.Mechanics);                                
 
+                                    //modify start path vector so that tangential angle is calculated correctly
+                                    float tmpCrossVersor[3];
+                                    PointsToVector(Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.Center,Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartEdge.CtrlPoint[4].Axes,tmpCrossVersor);
+                                    CrossProduct(Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.Normal,tmpCrossVersor,Buffer[i].MotionPackage[Buffer[i].PP_Index].StartPathVector);
+                                    Normalize(Buffer[i].MotionPackage[Buffer[i].PP_Index].StartPathVector);                                
+
+                                    //modify end path vector of previous block if it was a circle so that tangential angle is calculated correctly
+                                    if (Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].MovementType == MOVE_CIRCLE)
+                                    {
+                                        PointsToVector(Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].Path.Center,Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].Path.EndEdge.CtrlPoint[0].Axes,tmpCrossVersor);
+                                        CrossProduct(Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].Path.Normal,tmpCrossVersor,Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].EndPathVector);
+                                        Normalize(Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].EndPathVector);
+                                        Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].Path.EndEdge.tangAngleStart = atan2d(Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].EndPathVector[1],Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].EndPathVector[0]);
+                                    }
+                                
+                                    //modify end edge quaterion of previous block if it was a PTP
+                                    if (Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].MovementType == MOVE_PTP)
+                                    {
+                                        //calculate quaternion of end edge
+                                        EulerToQuat(Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].Path.EndEdge.CtrlPoint[0].Axes[3],Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].Path.EndEdge.CtrlPoint[0].Axes[4],Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].Path.EndEdge.CtrlPoint[0].Axes[5], &Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].Path.EndEdge.EdgeQuat);
+                                        Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].Path.EndEdge.QuatAngle = AngleBetweenQuat(Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].Path.EndEdge.EdgeQuat,&Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].Path.EndQuat);
+                                    }
+
+                                }
+                                                               
+                                //calculate initial and final tangential angle of current movement
+                                Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartEdge.tangAngleEnd = atan2d(Buffer[i].MotionPackage[Buffer[i].PP_Index].StartPathVector[1],Buffer[i].MotionPackage[Buffer[i].PP_Index].StartPathVector[0]);
+                                Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.EndEdge.tangAngleStart = atan2d(Buffer[i].MotionPackage[Buffer[i].PP_Index].EndPathVector[1],Buffer[i].MotionPackage[Buffer[i].PP_Index].EndPathVector[0]);
+                                //recall final tangential angle of previous movement
+                                Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartEdge.tangAngleStart = Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].Path.EndEdge.tangAngleStart;
+                                Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].Path.EndEdge.tangAngleEnd = Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartEdge.tangAngleEnd;
+                                
 
                                 /* replan end of previous block if it was a spline */
                                 if (Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].MovementType == MOVE_SPLINE)
                                 {
+                                    Buffer[i].MotionPackage[Buffer[i].PP_Index].TransitionAngle = 0;
+                                
                                     for(j=0;j<3;j++)
                                     {
                                         //end tangent of spline
@@ -2201,6 +2376,16 @@ unsigned short RobotControl(unsigned long Robots, unsigned char RobotsNumber)
                                         
                                     //spline length
                                     Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].BlockLength = BezierLength(Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].Path.Spline.CtrlPoint,BEZIER_XYZ,BEZIER_CUBIC);
+                                
+                                    //path workspace monitoring of previous spline block
+                                    tmpViolate = WorkspaceMonitor(MOVE_SPLINE,&Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].Path,gRobot[i]->Parameters.Tool[Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].Tool].Axes,gRobot[i]->Parameters.Workspace,gRobot[i]->Monitor.AxesNum,0);
+                                    if (tmpViolate)
+                                    {
+                                        fRSVG[i].EStop = 1;
+                                        StoppingError[i] = ERR_WORKSPACE_ZONE1 + (tmpViolate-1);
+                                        StoppingLine[i] = Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].LineNumber;                                
+                                    }
+
                                 }
 								
                                 //limit feedrate: time to complete block cannot exceed time needed from joints to reach end position
@@ -2273,29 +2458,13 @@ unsigned short RobotControl(unsigned long Robots, unsigned char RobotsNumber)
                                     StoppingLine[i] = Buffer[i].MotionPackage[Buffer[i].PP_Index].LineNumber;
                                     break;
                                 }
-
-								
-                                //check that end point (plus planned tool) does not violate axes limits
-                                if (gRobot[i]->Monitor.AxesNum < 5)
-                                {
-                                    SubFrame2D(gRobot[i]->Parameters.Tool[Buffer[i].MotionPackage[Buffer[i].PP_Index].Tool].Axes,Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.TargetPointPath,TempAxesValues);
-                                }
-                                else
-                                {
-                                    SubFrame3D(gRobot[i]->Parameters.Tool[Buffer[i].MotionPackage[Buffer[i].PP_Index].Tool].Axes,Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.TargetPointPath,0,0,0,TempAxesValues);
-                                }							
+                                
+                                //no path workspace monitoring here yet, because spline path will only be defined in next movement 
+                                
+                                //check for joint axes limits at end point - only if these are set (max>min)								
                                 for (k=0;k<gRobot[i]->Monitor.AxesNum;k++)
                                 {
-                                    //check for path axes limits only if these are set (max>min)
-                                    if (((TempAxesValues[k] > gRobot[i]->Parameters.WorkspaceLimits.PositionMax[k])||(TempAxesValues[k] < gRobot[i]->Parameters.WorkspaceLimits.PositionMin[k]))&&(gRobot[i]->Parameters.WorkspaceLimits.PositionMax[k] > gRobot[i]->Parameters.WorkspaceLimits.PositionMin[k]))
-                                    {
-                                        fRSVG[i].EStop = 1;
-                                        StoppingError[i] = ERR_LIMIT_X + k;
-                                        StoppingLine[i] = Buffer[i].MotionPackage[Buffer[i].PP_Index].LineNumber;
-                                        break;
-                                    }
-                                    //check for joint axes limits								
-                                    if ((Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.TargetPointJoint[k] > gRobot[i]->Parameters.JointLimits[k].PositionPos)||(Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.TargetPointJoint[k] < gRobot[i]->Parameters.JointLimits[k].PositionNeg))
+                                    if (((Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.TargetPointJoint[k] > gRobot[i]->Parameters.JointLimits[k].PositionPos)||(Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.TargetPointJoint[k] < gRobot[i]->Parameters.JointLimits[k].PositionNeg))&&(gRobot[i]->Parameters.JointLimits[k].PositionPos > gRobot[i]->Parameters.JointLimits[k].PositionNeg))
                                     {
                                         fRSVG[i].EStop = 1;
                                         StoppingError[i] = ERR_LIMIT_J1 + k;
@@ -2386,8 +2555,8 @@ unsigned short RobotControl(unsigned long Robots, unsigned char RobotsNumber)
                                 }
                                 else
                                 {//previous movement has no tangent -> spline starts straight towards end point
-                                    PointsToVector(Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartPointPath, Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.TargetPointPath, &Buffer[i].MotionPackage[Buffer[i].PP_Index].StartPathVector);
-                                    Normalize(&Buffer[i].MotionPackage[Buffer[i].PP_Index].StartPathVector);
+                                    PointsToVector(Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartPointPath, Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.TargetPointPath, Buffer[i].MotionPackage[Buffer[i].PP_Index].StartPathVector);
+                                    Normalize(Buffer[i].MotionPackage[Buffer[i].PP_Index].StartPathVector);
                                     for(j=0;j<3;j++)
                                     {
                                         Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.Spline.CtrlPoint[1].Axes[j] = Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartPointPath[j] + Buffer[i].MotionPackage[Buffer[i].PP_Index].StartPathVector[j] * Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.Spline.LengthA;
@@ -2396,8 +2565,8 @@ unsigned short RobotControl(unsigned long Robots, unsigned char RobotsNumber)
                                                               
                                 //third point cannot be calculated now, it depends on next movement and will be calculated there
                                 //however, we set it temporarily straight towards target point
-                                PointsToVector(Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartPointPath, Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.TargetPointPath, &Buffer[i].MotionPackage[Buffer[i].PP_Index].EndPathVector);
-                                Normalize(&Buffer[i].MotionPackage[Buffer[i].PP_Index].EndPathVector);
+                                PointsToVector(Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.StartPointPath, Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.TargetPointPath, Buffer[i].MotionPackage[Buffer[i].PP_Index].EndPathVector);
+                                Normalize(Buffer[i].MotionPackage[Buffer[i].PP_Index].EndPathVector);
                                 for(j=0;j<3;j++)
                                 {                                
                                     Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.Spline.CtrlPoint[2].Axes[j] = Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.TargetPointPath[j] - Buffer[i].MotionPackage[Buffer[i].PP_Index].EndPathVector[j] * Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.Spline.LengthB;
@@ -2410,8 +2579,8 @@ unsigned short RobotControl(unsigned long Robots, unsigned char RobotsNumber)
                                 /* replan end of previous block (and beginning of current movement) if it was a spline */
                                 if (Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].MovementType == MOVE_SPLINE)
                                 {
-                                    PointsToVector(Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].Path.StartPointPath, Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.TargetPointPath, &Buffer[i].MotionPackage[Buffer[i].PP_Index].StartPathVector);
-                                    Normalize(&Buffer[i].MotionPackage[Buffer[i].PP_Index].StartPathVector);
+                                    PointsToVector(Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].Path.StartPointPath, Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.TargetPointPath, Buffer[i].MotionPackage[Buffer[i].PP_Index].StartPathVector);
+                                    Normalize(Buffer[i].MotionPackage[Buffer[i].PP_Index].StartPathVector);
                                     
                                     for(j=0;j<3;j++)
                                     {
@@ -2425,6 +2594,16 @@ unsigned short RobotControl(unsigned long Robots, unsigned char RobotsNumber)
                                     //update spline lengths
                                     Buffer[i].MotionPackage[Buffer[i].PP_Index].BlockLength = BezierLength(Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.Spline.CtrlPoint,BEZIER_XYZ,BEZIER_CUBIC);
                                     Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].BlockLength = BezierLength(Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].Path.Spline.CtrlPoint,BEZIER_XYZ,BEZIER_CUBIC);
+                                
+                                    //path workspace monitoring of previous spline block
+                                    tmpViolate = WorkspaceMonitor(MOVE_SPLINE,&Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].Path,gRobot[i]->Parameters.Tool[Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].Tool].Axes,gRobot[i]->Parameters.Workspace,gRobot[i]->Monitor.AxesNum,0);
+                                    if (tmpViolate)
+                                    {
+                                        fRSVG[i].EStop = 1;
+                                        StoppingError[i] = ERR_WORKSPACE_ZONE1 + (tmpViolate-1);
+                                        StoppingLine[i] = Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].LineNumber;                                
+                                    }
+
                                 }
 																
                                 //limit feedrate: time to complete block cannot exceed time needed from joints to reach end position
@@ -2500,23 +2679,30 @@ unsigned short RobotControl(unsigned long Robots, unsigned char RobotsNumber)
                                 break;
 
                             case MOVE_TANG:
-                                //TODO - TODO 
-                                if ((Buffer[i].MotionPackage[Buffer[i].PP_Index].TangCmd)&&
-                                    ((!Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].TangCmd)||fabs(Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.RotAngle-Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].Path.RotAngle)>TRF_EPSILON))
-                                {//either just started new tangential, or modified offset angle 
-                                    //TODO the transition is non-tangential only if the new path tangent is not equal to the current C angle
-                                    Buffer[i].MotionPackage[Buffer[i].PP_Index].TransitionAngle = -1; //non-tangential transition
+                                {
+                                    //next movement has not been planned already, so we cannot know next starting tangent here
+                                    //TODO - introduce PP_Index_Next ?!?
+                                    //float oldTangAxis = Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].Path.TargetPointPath[gRobot[i]->Monitor.AxesNum-Buffer[i].MotionPackage[Buffer[i].PP_Index].TangCmd]; //TangCmd = 1,2,3 (tangent around Z,Y,X)
+                                    //float newPathTangent = atan2d(Buffer[i].MotionPackage[Buffer[i].PP_Index_Next].StartPathVector[1],Buffer[i].MotionPackage[Buffer[i].PP_Index_Next].StartPathVector[0]);                                    
+                                    if (Buffer[i].MotionPackage[Buffer[i].PP_Index].TangCmd &&
+                                        //Buffer[i].MotionPackage[Buffer[i].PP_Index_Next].MovementType != MOVE_PTP &&
+                                        (!Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].TangCmd || //&& fabs(newPathTangent-oldTangAxis)>TRF_EPSILON) ||
+                                        (Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].TangCmd && fabs(Buffer[i].MotionPackage[Buffer[i].PP_Index].Path.RotAngle-Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].Path.RotAngle)>TRF_EPSILON))
+                                        )
+                                    {//either just started new tangential section (with new path tangent not equal to the current C angle), or modified offset angle 
+                                        Buffer[i].MotionPackage[Buffer[i].PP_Index].TransitionAngle = -1; //non-tangential transition
+                                    }
+                                    else
+                                    {// either tang off or useless tang on
+                                        //TODO axes will jump after TANG 0 -> take care of that here or let the OptMot do the job?!?
+                                        Buffer[i].MotionPackage[Buffer[i].PP_Index].TransitionAngle = 0;
+                                    }
+                                    Buffer[i].MotionPackage[Buffer[i].PP_Index].Planned = 1;
+                                    //Buffer[i].PP_Index_Prev = Buffer[i].PP_Index; //do not update prev index here so Tang does not interrupt geometry (e.g. for splines after TANG 0)
+                                    Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].TangCmd = Buffer[i].MotionPackage[Buffer[i].PP_Index].TangCmd; //needs this to compensate for previous line
+                                    Buffer[i].PP_Index++;
+                                    break;
                                 }
-                                else
-                                {// either tang off or useless tang on
-                                    //TODO axes will jump after TANG 0 -> take care of that here or let the OptMot do the job?!?
-                                    Buffer[i].MotionPackage[Buffer[i].PP_Index].TransitionAngle = 0;
-                                }
-                                Buffer[i].MotionPackage[Buffer[i].PP_Index].Planned = 1;
-                                //Buffer[i].PP_Index_Prev = Buffer[i].PP_Index; //do not update prev index here so Tang does not interrupt geometry (e.g. for splines after TANG 0)
-                                Buffer[i].MotionPackage[Buffer[i].PP_Index_Prev].TangCmd = Buffer[i].MotionPackage[Buffer[i].PP_Index].TangCmd; //needs this to compensate for previous line
-                                Buffer[i].PP_Index++;
-                                break;
 
                             case MOVE_END:
                                 Buffer[i].MotionPackage[Buffer[i].PP_Index].TransitionAngle = -1; //non-tangential transition
@@ -2594,7 +2780,7 @@ unsigned short RobotControl(unsigned long Robots, unsigned char RobotsNumber)
                                     gRobot[i]->Monitor.Frame = Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Frame;
 							
                                     /* do not start movement if block length is zero */
-                                    if(gRobot[i]->Monitor.BlockLength == 0)
+                                    if(gRobot[i]->Monitor.BlockLength < TRF_EPSILON)
                                     {
                                         gRobot[i]->Monitor.CompletedBlockLength = 0;
                                         fRSVG[i].Enable = 0;
@@ -2748,6 +2934,10 @@ unsigned short RobotControl(unsigned long Robots, unsigned char RobotsNumber)
                                     unsigned short MovementAllowed = 1;
                                     memcpy(&OldAxesValues,&gRobot[i]->Monitor.JointPosition,sizeof(OldAxesValues));
                                     float tangAngle;
+                                    
+                                    //save old X,Y for tangential angle calculation
+                                    float oldX = gRobot[i]->Monitor.MountBasePosition[0];
+                                    float oldY = gRobot[i]->Monitor.MountBasePosition[1];
 
                                     do {
                                                                                 
@@ -2764,96 +2954,108 @@ unsigned short RobotControl(unsigned long Robots, unsigned char RobotsNumber)
                                         //protect from small overshoots
                                         if (gRobot[i]->Monitor.CompletedBlockLength > gRobot[i]->Monitor.BlockLength)
                                             gRobot[i]->Monitor.CompletedBlockLength = gRobot[i]->Monitor.BlockLength;							
-									
-                                        //check what phase of the block is currently being executed
+
+                                        float u = gRobot[i]->Monitor.CompletedBlockLength/gRobot[i]->Monitor.BlockLength;
+
+                                        float u_start = 0;
+                                        float u_end = 0;
+                                        if (Buffer[i].MotionPackage[Buffer[i].EXEC_Index].BlockLengthIdeal > 0)
+                                        {
+                                            u_start = Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.StartEdge.Radius/Buffer[i].MotionPackage[Buffer[i].EXEC_Index].BlockLengthIdeal;
+                                            u_end = Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.EndEdge.Radius/Buffer[i].MotionPackage[Buffer[i].EXEC_Index].BlockLengthIdeal;
+                                        }
+
+                                        //interpolate POSITION
                                         unsigned short phase; //used for debugging, not really needed otherwise
                                         Point_Type tmpPoint;
-                                        if (gRobot[i]->Monitor.CompletedBlockLength < Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.StartEdge.Length)
+                                        if (u < u_start)                                            
                                         {//start edge -> interpolate Bezier with u = 0.5 ... 1
                                             phase = PHASE_START;
-                                            float u = 0.5f + (gRobot[i]->Monitor.CompletedBlockLength/Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.StartEdge.Length/2.0f);
-                                            if (gRobot[i]->Monitor.AxesNum != 6)
+                                            
+                                            float u_tmp = 0.5f + u / u_start * 0.5f;
+                                            EvaluateBezier(Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.StartEdge.CtrlPoint,u_tmp,&tmpPoint,BEZIER_XYZ,BEZIER_QUARTIC);
+                                            for(j=0;j<BEZIER_XYZ;j++)
                                             {
-                                                EvaluateBezier(Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.StartEdge.CtrlPoint,u,&tmpPoint,gRobot[i]->Monitor.AxesNum,BEZIER_QUARTIC);
-                                                for(j=0;j<gRobot[i]->Monitor.AxesNum;j++)
+                                                gRobot[i]->Monitor.MountBasePosition[j] = tmpPoint.Axes[j];
+                                            }	
+
+                                            //tangential auto mode: force C axis to follow path tangent
+                                            if(gRobot[i]->Monitor.TangActive)
+                                            {
+                                                //calculate tangent angle on XY plane
+                                                float tang_u = u_tmp + (1.0/Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.StartEdge.Length/10.0); //move on spline by 0.1mm (note that increment is purely geometrical, independent of path speed)
+                                                if (tang_u<1)
                                                 {
-                                                    gRobot[i]->Monitor.MountBasePosition[j] = tmpPoint.Axes[j];
+                                                    EvaluateBezier(Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.StartEdge.CtrlPoint,tang_u,&tmpPoint,BEZIER_XYZ,BEZIER_QUARTIC);
+                                                    tangAngle = atan2d(tmpPoint.Axes[1]-oldY,tmpPoint.Axes[0]-oldX);
+                                                }
+                                                else
+                                                {//spline close to end - use tangent of next block
+                                                    tangAngle = Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.StartEdge.tangAngleEnd;
                                                 }
                                             }
-                                            else //6ax robot
-                                            {//only interpolate position - orientation is done via quaternions
-                                                EvaluateBezier(Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.StartEdge.CtrlPoint,u,&tmpPoint,BEZIER_XYZ,BEZIER_QUARTIC);
-                                                for(j=0;j<3;j++)
-                                                {
-                                                    gRobot[i]->Monitor.MountBasePosition[j] = tmpPoint.Axes[j];
-                                                }											
-                                            }
-                                            //tangential angle is a linear interpolation between current angle and future angle
-                                            float tangAngle1 = Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.StartEdge.tangAngleStart;
-                                            float tangAngle2 = Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.StartEdge.tangAngleEnd;
-                                            tangAngle = u*tangAngle2 + (1-u)*tangAngle1;
                                         }
-                                        else if (gRobot[i]->Monitor.BlockLength - gRobot[i]->Monitor.CompletedBlockLength < Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.EndEdge.Length)
+                                        else if ((1-u) < u_end)
                                         {//end edge -> interpolate Bezier with u = 0 ... 0.5
                                             phase = PHASE_END;	
-                                            float u = (gRobot[i]->Monitor.CompletedBlockLength - (gRobot[i]->Monitor.BlockLength - Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.EndEdge.Length))/Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.EndEdge.Length/2.0f;
-                                            if (gRobot[i]->Monitor.AxesNum != 6)
+                                            float alpha = 1 - u_end;
+
+                                            //interpolate POSITION
+                                            float u_tmp = (u-alpha)/u_end * 0.5f;
+                                            EvaluateBezier(Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.EndEdge.CtrlPoint,u_tmp,&tmpPoint,BEZIER_XYZ,BEZIER_QUARTIC);
+                                            for(j=0;j<BEZIER_XYZ;j++)
                                             {
-                                                EvaluateBezier(Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.EndEdge.CtrlPoint,u,&tmpPoint,gRobot[i]->Monitor.AxesNum,BEZIER_QUARTIC);
-                                                for(j=0;j<gRobot[i]->Monitor.AxesNum;j++)
+                                                gRobot[i]->Monitor.MountBasePosition[j] = tmpPoint.Axes[j];
+                                            }
+
+                                            //tangential auto mode: force C axis to follow path tangent
+                                            if(gRobot[i]->Monitor.TangActive)
+                                            {
+                                                //calculate tangent angle on XY plane
+                                                float tang_u = u_tmp + (1.0/Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.EndEdge.Length/10.0); //move on spline by 0.1mm (note that increment is purely geometrical, independent of path speed)
+                                                if (tang_u<1)
                                                 {
-                                                    gRobot[i]->Monitor.MountBasePosition[j] = tmpPoint.Axes[j];
+                                                    EvaluateBezier(Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.EndEdge.CtrlPoint,tang_u,&tmpPoint,BEZIER_XYZ,BEZIER_QUARTIC);
+                                                    tangAngle = atan2d(tmpPoint.Axes[1]-oldY,tmpPoint.Axes[0]-oldX);
+                                                }
+                                                else
+                                                {//spline close to end - use tangent of next block
+                                                    tangAngle = Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.EndEdge.tangAngleEnd;
                                                 }
                                             }
-                                            else //6ax robot
-                                            {//only interpolate position - orientation is done via quaternions
-                                                EvaluateBezier(Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.EndEdge.CtrlPoint,u,&tmpPoint,BEZIER_XYZ,BEZIER_QUARTIC);
-                                                for(j=0;j<3;j++)
-                                                {
-                                                    gRobot[i]->Monitor.MountBasePosition[j] = tmpPoint.Axes[j];
-                                                }											
-                                            }
-                                            //tangential angle is a linear interpolation between current angle and future angle
-                                            float tangAngle1 = Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.EndEdge.tangAngleStart;
-                                            float tangAngle2 = Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.EndEdge.tangAngleEnd;
-                                            tangAngle = u*tangAngle2 + (1-u)*tangAngle1;
                                         }
                                         else
                                         {//middle block -> interpolate linearly with u = 0 ... 1
                                             phase = PHASE_MIDDLE;	
-                                            //division by zero cannot happen because it would be one of the two cases above
-                                            float u = (gRobot[i]->Monitor.CompletedBlockLength - Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.StartEdge.Length)/(gRobot[i]->Monitor.BlockLength - Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.StartEdge.Length - Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.EndEdge.Length);
-
-                                            if (gRobot[i]->Monitor.AxesNum != 6)
+                                            float u_tmp = (u-u_start) / (1-u_end-u_start);
+                                            for(j=0;j<BEZIER_XYZ;j++)
                                             {
-                                                for(j=0;j<gRobot[i]->Monitor.AxesNum;j++)
-                                                {
-                                                    gRobot[i]->Monitor.MountBasePosition[j] = (1-u) * Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.StartEdge.CtrlPoint[4].Axes[j] + u * Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.EndEdge.CtrlPoint[0].Axes[j];
-                                                }
+                                                gRobot[i]->Monitor.MountBasePosition[j] = (1-u_tmp) * Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.StartEdge.CtrlPoint[4].Axes[j] + u_tmp * Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.EndEdge.CtrlPoint[0].Axes[j];
                                             }
-                                            else
-                                            {//position is interpolated linearly, orientation uses quaternions slerp								
-                                                for(j=0;j<3;j++)
-                                                {
-                                                    gRobot[i]->Monitor.MountBasePosition[j] = (1-u) * Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.StartEdge.CtrlPoint[4].Axes[j] + u * Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.EndEdge.CtrlPoint[0].Axes[j];
-                                                }
-                                            }
+
                                             tangAngle = Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.StartEdge.tangAngleEnd;
                                         }
 
-                                        //interpolate orientation of 6ax robot using quaternions, no matter what phase the position is running through
-                                        if (gRobot[i]->Monitor.AxesNum == 6)
-                                        {
-                                            float u = gRobot[i]->Monitor.CompletedBlockLength / gRobot[i]->Monitor.BlockLength;
+                                        //interpolate ORIENTATION
+                                        if (gRobot[i]->Monitor.AxesNum != 6)
+                                        {//orientation interpolated linearly
+                                            for(j=3;j<gRobot[i]->Monitor.AxesNum;j++)
+                                            {
+                                                gRobot[i]->Monitor.MountBasePosition[j] = (1-u) * Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.StartPointPath[j] + u * Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.TargetPointPath[j];
+                                            }
+                                        }
+                                        else
+                                        {//orientation uses quaternions slerp       
                                             float tmpA,tmpB,tmpC;
                                             Quat_Type tmpQuat;
                                             Slerp(Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.StartQuat,Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.EndQuat,&tmpQuat,Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.QuatAngle,u);
-                                            QuatToEuler(tmpQuat,gRobot[i]->Monitor.MountBasePosition[3],gRobot[i]->Monitor.MountBasePosition[4],gRobot[i]->Monitor.MountBasePosition[5],&tmpA,&tmpB,&tmpC);
+                                            //QuatToEuler(tmpQuat,gRobot[i]->Monitor.MountBasePosition[3],gRobot[i]->Monitor.MountBasePosition[4],gRobot[i]->Monitor.MountBasePosition[5],&tmpA,&tmpB,&tmpC);
+                                            QuatToEuler(tmpQuat,Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.StartPointPath[3],Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.StartPointPath[4],Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.StartPointPath[5],&tmpA,&tmpB,&tmpC);
                                             gRobot[i]->Monitor.MountBasePosition[3] = tmpA;
                                             gRobot[i]->Monitor.MountBasePosition[4] = tmpB;
-                                            gRobot[i]->Monitor.MountBasePosition[5] = tmpC;
+                                            gRobot[i]->Monitor.MountBasePosition[5] = tmpC;         
                                         }
-									
+									                                        
                                         //tangential auto mode: force C axis to follow path tangent
                                         if(gRobot[i]->Monitor.TangActive)
                                         {
@@ -2979,20 +3181,24 @@ unsigned short RobotControl(unsigned long Robots, unsigned char RobotsNumber)
 				
                             case MOVE_PTP:
                                 if (!fRSVG[i].Enable) //svg not active yet -> movement not started
-                                {
-                                                                            
-                                    //make sure blocklength has not changed
-                                    //maybe previous position was not reached correctly because of interpolated movement programmed in joint world
-                                    memcpy(&Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.StartPointJoint,&gRobot[i]->Monitor.JointPosition,sizeof(gRobot[i]->Monitor.JointPosition));
-                                    Buffer[i].MotionPackage[Buffer[i].EXEC_Index].BlockLength = LineLength(Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.StartPointJoint,Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.TargetPointJoint,gRobot[i]->Monitor.AxesNum);
-                                        
+                                {              
+                                    //recalculate starting point and blocklength if previous position was not reached correctly because of interpolated movement programmed in joint world
+                                    //exclude case of round edge (because target point is never reached)
+                                    if (Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.StartEdge.Length <= 0)
+                                    {
+                                        memcpy(&Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.StartPointJoint,&gRobot[i]->Monitor.JointPosition,sizeof(gRobot[i]->Monitor.JointPosition));
+                                        memcpy(&Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.StartEdge.CtrlPoint[6].Axes,&gRobot[i]->Monitor.JointPosition,sizeof(gRobot[i]->Monitor.JointPosition));
+                                        Buffer[i].MotionPackage[Buffer[i].EXEC_Index].BlockLength = LineLength(Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.StartPointJoint,Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.TargetPointJoint,gRobot[i]->Monitor.AxesNum);
+                                        //TODO - the BlockLength depends on the feedrate definition!
+                                    }
+                                    
                                     gRobot[i]->Monitor.BlockLength = Buffer[i].MotionPackage[Buffer[i].EXEC_Index].BlockLength;
 								
                                     gRobot[i]->Monitor.Tool = Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Tool;
                                     gRobot[i]->Monitor.Frame = Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Frame;
 
                                     /* do not start movement if block length is zero */
-                                    if(gRobot[i]->Monitor.BlockLength == 0)
+                                    if(gRobot[i]->Monitor.BlockLength < TRF_EPSILON)
                                     {
                                         gRobot[i]->Monitor.CompletedBlockLength = 0;
                                         fRSVG[i].Enable = 0;
@@ -3146,6 +3352,9 @@ unsigned short RobotControl(unsigned long Robots, unsigned char RobotsNumber)
                                     // after an ML P0 move where P0 was programmed in joint world
                                     unsigned short MovementAllowed = 1;
 
+                                    memcpy(&OldAxesValues,&gRobot[i]->Monitor.JointPosition,sizeof(OldAxesValues));
+                                    AxesMoved = 1; //movement active -> add whole conveyor offset when tracking									
+
                                     do {
 
                                         if (MovementAllowed)
@@ -3163,22 +3372,123 @@ unsigned short RobotControl(unsigned long Robots, unsigned char RobotsNumber)
                                             gRobot[i]->Monitor.CompletedBlockLength = gRobot[i]->Monitor.BlockLength;
 							
                                         float u = gRobot[i]->Monitor.CompletedBlockLength/gRobot[i]->Monitor.BlockLength;
-									    
-                                        memcpy(&OldAxesValues,&gRobot[i]->Monitor.JointPosition,sizeof(OldAxesValues));
                                         
-                                        for(j=0;j<gRobot[i]->Monitor.AxesNum;j++)
+                                        float u_start = 0;
+                                        float u_end = 0;
+                                        if (Buffer[i].MotionPackage[Buffer[i].EXEC_Index].BlockLengthIdeal > 0)
                                         {
-                                            gRobot[i]->Monitor.JointPosition[j] = (1-u) * Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.StartPointJoint[j] + u * Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.TargetPointJoint[j];
+                                            u_start = Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.StartEdge.Radius/Buffer[i].MotionPackage[Buffer[i].EXEC_Index].BlockLengthIdeal;
+                                            u_end = Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.EndEdge.Radius/Buffer[i].MotionPackage[Buffer[i].EXEC_Index].BlockLengthIdeal;
                                         }
+                                        
+                                        //check what phase of the block is currently being executed
+                                        unsigned short phase;
+                                        Point_Type tmpPoint;
+                                        if (u < u_start)
+                                        {//start edge -> interpolate Bezier with u = 0.5 ... 1
+                                            phase = PHASE_START;
+                                            
+                                            //interpolate POSITION
+                                            float u_tmp = 0.5f + u / u_start * 0.5f;
+                                            EvaluateBezier(Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.StartEdge.CtrlPoint,u_tmp,&tmpPoint,BEZIER_XYZ,BEZIER_QUARTIC);
+                                            for(j=0;j<BEZIER_XYZ;j++)
+                                            {
+                                                gRobot[i]->Monitor.MountBasePosition[j] = tmpPoint.Axes[j];
+                                            }	
 
-                                        //memcpy(&OldAxesValues,&gRobot[i]->Monitor.MountBasePosition,sizeof(OldAxesValues));
-                                        AxesMoved = 1; //movement active -> add whole conveyor offset when tracking									
-                                        Trf_Status = Transformations(&gRobot[i]->Parameters.Mechanics,TRF_DIRECT,gRobot[i]->Monitor.JointPosition,gRobot[i]->Monitor.MountBasePosition,gRobot[i]->Monitor.MountBasePosition);
-                                        if (Trf_Status != STATUS_OK)
-                                        {
-                                            gRobot[i]->Monitor.ActiveError = Trf_Status;
-                                            gRobot[i]->Monitor.ErrorLine = gRobot[i]->Monitor.LineNumber;
+                                            //interpolate ORIENTATION
+                                            u_tmp = u / u_start;
+                                            if (gRobot[i]->Monitor.AxesNum != 6)
+                                            {//orientation interpolated linearly
+                                                for(j=3;j<gRobot[i]->Monitor.AxesNum;j++)
+                                                {
+                                                    gRobot[i]->Monitor.MountBasePosition[j] = (1-u_tmp) * Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.StartPointPath[j] + u_tmp * Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.StartEdge.CtrlPoint[4].Axes[j];
+                                                }
+                                            }
+                                            else
+                                            {//orientation uses quaternions slerp       
+                                                float tmpA,tmpB,tmpC;
+                                                Quat_Type tmpQuat;
+                                                Slerp(Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.StartQuat,Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.StartEdge.EdgeQuat,&tmpQuat,Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.StartEdge.QuatAngle,u_tmp);
+                                                QuatToEuler(tmpQuat,gRobot[i]->Monitor.MountBasePosition[3],gRobot[i]->Monitor.MountBasePosition[4],gRobot[i]->Monitor.MountBasePosition[5],&tmpA,&tmpB,&tmpC);
+                                                gRobot[i]->Monitor.MountBasePosition[3] = tmpA;
+                                                gRobot[i]->Monitor.MountBasePosition[4] = tmpB;
+                                                gRobot[i]->Monitor.MountBasePosition[5] = tmpC;
+                                            }
+
+                                            Trf_Status = Transformations(&gRobot[i]->Parameters.Mechanics,TRF_INVERSE,OldAxesValues,gRobot[i]->Monitor.MountBasePosition,gRobot[i]->Monitor.JointPosition);
+                                            if (Trf_Status != STATUS_OK)
+                                            {
+                                                gRobot[i]->Monitor.ActiveError = Trf_Status;
+                                                gRobot[i]->Monitor.ErrorLine = gRobot[i]->Monitor.LineNumber;
+                                                //resume old joints positions to prevent jumps
+                                                memcpy(&gRobot[i]->Monitor.JointPosition,&OldAxesValues,sizeof(gRobot[i]->Monitor.JointPosition));
+                                            }							
                                         }
+                                        else if ((1-u) < u_end)
+                                        {//end edge -> interpolate Bezier with u = 0 ... 0.5
+                                            phase = PHASE_END;
+                                            float alpha = 1 - u_end;
+
+                                            //interpolate POSITION
+                                            float u_tmp = (u-alpha)/u_end * 0.5f;
+                                            EvaluateBezier(Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.EndEdge.CtrlPoint,u_tmp,&tmpPoint,BEZIER_XYZ,BEZIER_QUARTIC);
+                                            for(j=0;j<BEZIER_XYZ;j++)
+                                            {
+                                                gRobot[i]->Monitor.MountBasePosition[j] = tmpPoint.Axes[j];
+                                            }
+                                                                
+                                            //interpolate ORIENTATION
+                                            u_tmp = (u-alpha) / u_end;
+                                            if (gRobot[i]->Monitor.AxesNum != 6)
+                                            {//orientation interpolated linearly
+                                                for(j=3;j<gRobot[i]->Monitor.AxesNum;j++)
+                                                {
+                                                    gRobot[i]->Monitor.MountBasePosition[j] = (1-u_tmp) * Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.EndEdge.CtrlPoint[0].Axes[j] + u_tmp * Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.TargetPointPath[j];
+                                                }
+                                            }
+                                            else
+                                            {//orientation uses quaternions slerp                                            
+                                                float tmpA,tmpB,tmpC;
+                                                Quat_Type tmpQuat;
+                                                Slerp(Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.EndEdge.EdgeQuat,Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.EndQuat,&tmpQuat,Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.EndEdge.QuatAngle,u_tmp);
+                                                QuatToEuler(tmpQuat,gRobot[i]->Monitor.MountBasePosition[3],gRobot[i]->Monitor.MountBasePosition[4],gRobot[i]->Monitor.MountBasePosition[5],&tmpA,&tmpB,&tmpC);
+                                                gRobot[i]->Monitor.MountBasePosition[3] = tmpA;
+                                                gRobot[i]->Monitor.MountBasePosition[4] = tmpB;
+                                                gRobot[i]->Monitor.MountBasePosition[5] = tmpC;
+                                            }
+
+                                            Trf_Status = Transformations(&gRobot[i]->Parameters.Mechanics,TRF_INVERSE,OldAxesValues,gRobot[i]->Monitor.MountBasePosition,gRobot[i]->Monitor.JointPosition);
+                                            if (Trf_Status != STATUS_OK)
+                                            {
+                                                gRobot[i]->Monitor.ActiveError = Trf_Status;
+                                                gRobot[i]->Monitor.ErrorLine = gRobot[i]->Monitor.LineNumber;
+                                                //resume old joints positions to prevent jumps
+                                                memcpy(&gRobot[i]->Monitor.JointPosition,&OldAxesValues,sizeof(gRobot[i]->Monitor.JointPosition));
+                                            }							
+                                        }
+                                        else
+                                        {//middle block -> interpolate joints linearly (this is the real PTP movement)
+                                            if (phase != PHASE_MIDDLE)
+                                            { // TODO - first time in here -> adjust starting point to avoid jumps
+                                                //memcpy(&Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.StartEdge.CtrlPoint[6].Axes,&gRobot[i]->Monitor.JointPosition,sizeof(gRobot[i]->Monitor.JointPosition));
+                                            }
+                                            phase = PHASE_MIDDLE;	
+                                            float u_tmp = (u-u_start) / (1-u_end-u_start);
+                                            for(j=0;j<gRobot[i]->Monitor.AxesNum;j++)
+                                            {
+                                                gRobot[i]->Monitor.JointPosition[j] = (1-u_tmp) * Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.StartEdge.CtrlPoint[6].Axes[j] + u_tmp * Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.EndEdge.CtrlPoint[5].Axes[j];
+                                            }
+
+                                            Trf_Status = Transformations(&gRobot[i]->Parameters.Mechanics,TRF_DIRECT,gRobot[i]->Monitor.JointPosition,gRobot[i]->Monitor.MountBasePosition,gRobot[i]->Monitor.MountBasePosition);
+                                            if (Trf_Status != STATUS_OK)
+                                            {
+                                                gRobot[i]->Monitor.ActiveError = Trf_Status;
+                                                gRobot[i]->Monitor.ErrorLine = gRobot[i]->Monitor.LineNumber;
+                                            }
+                                        }
+                                        
+                                        //tangential auto mode does not exist for PTP movements, not even during their half of the round edge transitions
                                         
                                         //reduce path speed if speed of any joint axis is exceeded
                                         // MovementAllowed is set to 255 after test already failed once - no need to repeat again
@@ -3297,7 +3607,7 @@ unsigned short RobotControl(unsigned long Robots, unsigned char RobotsNumber)
                                     gRobot[i]->Monitor.Frame = Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Frame;
 
                                     /* do not start movement if block length is zero */
-                                    if(gRobot[i]->Monitor.BlockLength == 0)	
+                                    if(gRobot[i]->Monitor.BlockLength < TRF_EPSILON)
                                     {
                                         gRobot[i]->Monitor.CompletedBlockLength = 0;
                                         fRSVG[i].Enable = 0;
@@ -3449,7 +3759,12 @@ unsigned short RobotControl(unsigned long Robots, unsigned char RobotsNumber)
                                     // if it fails then execute it again at lower speed
                                     unsigned short MovementAllowed = 1;
                                     memcpy(&OldAxesValues,&gRobot[i]->Monitor.JointPosition,sizeof(OldAxesValues));
+                                    float tangAngle;
                                     
+                                    //save old X,Y for tangential angle calculation
+                                    float oldX = gRobot[i]->Monitor.MountBasePosition[0];
+                                    float oldY = gRobot[i]->Monitor.MountBasePosition[1];
+
                                     do {
                                         
                                         if (MovementAllowed)
@@ -3466,128 +3781,165 @@ unsigned short RobotControl(unsigned long Robots, unsigned char RobotsNumber)
                                         if (gRobot[i]->Monitor.CompletedBlockLength > gRobot[i]->Monitor.BlockLength)
                                             gRobot[i]->Monitor.CompletedBlockLength = gRobot[i]->Monitor.BlockLength;							
 
-                                        //save old X,Y for tangential angle calculation
-                                        float oldX = gRobot[i]->Monitor.MountBasePosition[0];
-                                        float oldY = gRobot[i]->Monitor.MountBasePosition[1];
-                                        
-                                        if (Buffer[i].MotionPackage[Buffer[i].EXEC_Index].FeedrateType == FEED_ANG)
-                                        { //interpolate orientation linearly and let cartesian axes follow along
-										
-                                            float u = gRobot[i]->Monitor.CompletedBlockLength/gRobot[i]->Monitor.BlockLength;
+                                        float u = gRobot[i]->Monitor.CompletedBlockLength/gRobot[i]->Monitor.BlockLength;
 
-                                            for(j=0;j<3;j++)
-                                            {//X,Y,Z on circle along with orientation
-                                                //P = C + R cos(t) U + R sin(t) V
-                                                if (u <= Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.uM)
+                                        float u_start = 0;
+                                        float u_end = 0;
+                                        if (Buffer[i].MotionPackage[Buffer[i].EXEC_Index].BlockLengthIdeal > 0)
+                                        {
+                                            u_start = Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.StartEdge.Radius/Buffer[i].MotionPackage[Buffer[i].EXEC_Index].BlockLengthIdeal;
+                                            u_end = Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.EndEdge.Radius/Buffer[i].MotionPackage[Buffer[i].EXEC_Index].BlockLengthIdeal;
+                                        }
+                                        
+                                        //interpolate POSITION
+                                        unsigned short phase; //used for debugging, not really needed otherwise
+                                        Point_Type tmpPoint;
+                                        if (u < u_start)                                            
+                                        {//start edge -> interpolate Bezier with u = 0.5 ... 1
+                                            phase = PHASE_START;
+                                            
+                                            float u_tmp = 0.5f + u / u_start * 0.5f;
+                                            EvaluateBezier(Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.StartEdge.CtrlPoint,u_tmp,&tmpPoint,BEZIER_XYZ,BEZIER_QUARTIC);
+                                            for(j=0;j<BEZIER_XYZ;j++)
+                                            {
+                                                gRobot[i]->Monitor.MountBasePosition[j] = tmpPoint.Axes[j];
+                                            }				
+                                            
+                                            //tangential auto mode: force C axis to follow path tangent
+                                            if(gRobot[i]->Monitor.TangActive)
+                                            {
+                                                //calculate tangent angle on XY plane
+                                                float tang_u = u_tmp + (1.0/Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.StartEdge.Length/10.0); //move on spline by 0.1mm (note that increment is purely geometrical, independent of path speed)
+                                                if (tang_u<1)
                                                 {
-                                                    float tmp_u = u/Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.uM;
-                                                    gRobot[i]->Monitor.MountBasePosition[j] = Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.Center[j] + Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.Radius * cos(Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.MiddleLength * tmp_u / Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.Radius) * Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.StartVersor[j] + Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.Radius * sin(Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.MiddleLength * tmp_u / Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.Radius) * Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.CrossVersor[j];
+                                                    EvaluateBezier(Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.StartEdge.CtrlPoint,tang_u,&tmpPoint,BEZIER_XYZ,BEZIER_QUARTIC);
+                                                    tangAngle = atan2d(tmpPoint.Axes[1]-oldY,tmpPoint.Axes[0]-oldX);
                                                 }
                                                 else
-                                                {
-                                                    float tmp_u = (u-Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.uM)/(1-Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.uM);
-                                                    gRobot[i]->Monitor.MountBasePosition[j] = Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.Center[j] + Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.Radius * cos((Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.MiddleLength + (Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.Length - Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.MiddleLength) * tmp_u) / Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.Radius) * Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.StartVersor[j] + Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.Radius * sin((Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.MiddleLength + (Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.Length - Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.MiddleLength) * tmp_u) / Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.Radius) * Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.CrossVersor[j];
-                                                }
-                                            }							
-							
-                                            if (gRobot[i]->Monitor.AxesNum != 6)
-                                            {//orientation interpolated linearly
-                                                for(j=3;j<gRobot[i]->Monitor.AxesNum;j++)
-                                                {
-                                                    if (u <= Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.uM)
-                                                    {
-                                                        float tmp_u = u/Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.uM;
-                                                        gRobot[i]->Monitor.MountBasePosition[j] = (1-tmp_u) * Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.StartPointPath[j] + tmp_u * Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.MiddlePointPath[j];
-                                                    }
-                                                    else
-                                                    {
-                                                        float tmp_u = (u-Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.uM)/(1-Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.uM);
-                                                        gRobot[i]->Monitor.MountBasePosition[j] = (1-tmp_u) * Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.MiddlePointPath[j] + tmp_u * Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.TargetPointPath[j];
-                                                    }
+                                                {//spline close to end - use tangent of next block
+                                                    tangAngle = Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.StartEdge.tangAngleEnd;
                                                 }
                                             }
-                                            else
-                                            {//orientation uses quaternions slerp								
-                                                float tmpA,tmpB,tmpC;
-                                                Quat_Type tmpQuat;
-                                                if (u <= Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.uM)
+                                        }
+                                        else if ((1-u) < u_end)
+                                        {//end edge -> interpolate Bezier with u = 0 ... 0.5
+                                            phase = PHASE_END;	
+                                            float alpha = 1 - u_end;
+                                            
+                                            float u_tmp = (u-alpha)/u_end * 0.5f;
+                                            EvaluateBezier(Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.EndEdge.CtrlPoint,u_tmp,&tmpPoint,BEZIER_XYZ,BEZIER_QUARTIC);
+                                            for(j=0;j<BEZIER_XYZ;j++)
+                                            {
+                                                gRobot[i]->Monitor.MountBasePosition[j] = tmpPoint.Axes[j];
+                                            }		
+                                            //tangential auto mode: force C axis to follow path tangent
+                                            if(gRobot[i]->Monitor.TangActive)
+                                            {
+                                                //calculate tangent angle on XY plane
+                                                float tang_u = u_tmp + (1.0/Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.EndEdge.Length/10.0); //move on spline by 0.1mm (note that increment is purely geometrical, independent of path speed)
+                                                if (tang_u<1)
                                                 {
-                                                    float tmp_u = u/Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.uM;
-                                                    Slerp(Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.StartQuat,Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.MiddleQuat,&tmpQuat,Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.QuatAngle1,tmp_u);
+                                                    EvaluateBezier(Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.EndEdge.CtrlPoint,tang_u,&tmpPoint,BEZIER_XYZ,BEZIER_QUARTIC);
+                                                    tangAngle = atan2d(tmpPoint.Axes[1]-oldY,tmpPoint.Axes[0]-oldX);
                                                 }
                                                 else
-                                                {
-                                                    float tmp_u = (u-Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.uM)/(1-Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.uM);	
-                                                    Slerp(Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.MiddleQuat,Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.EndQuat,&tmpQuat,Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.QuatAngle2,tmp_u);
-            									
+                                                {//spline close to end - use tangent of next block
+                                                    tangAngle = Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.EndEdge.tangAngleEnd;
                                                 }
-                                                QuatToEuler(tmpQuat,gRobot[i]->Monitor.MountBasePosition[3],gRobot[i]->Monitor.MountBasePosition[4],gRobot[i]->Monitor.MountBasePosition[5],&tmpA,&tmpB,&tmpC);
-                                                gRobot[i]->Monitor.MountBasePosition[3] = tmpA;
-                                                gRobot[i]->Monitor.MountBasePosition[4] = tmpB;
-                                                gRobot[i]->Monitor.MountBasePosition[5] = tmpC;
                                             }
                                         }
                                         else
-                                        { // interpolate cartesian axes along circle and let orientation follow along
+                                        {//middle block -> interpolate linearly with u = 0 ... 1
+                                            phase = PHASE_MIDDLE;	
+                                            //division by zero cannot happen because it would be one of the two cases above
+                                            float u_tmp = u; //(u-u_start) / (1-u_end-u_start);
+                                            
+                                            if (Buffer[i].MotionPackage[Buffer[i].EXEC_Index].FeedrateType == FEED_ANG)
+                                            { //interpolate orientation linearly and let cartesian axes follow along
 										
-                                            float u = gRobot[i]->Monitor.CompletedBlockLength/gRobot[i]->Monitor.BlockLength;
-
-                                            for(j=0;j<3;j++)
-                                            {//X,Y,Z on circle
-                                                //P = C + R cos(t) U + R sin(t) V
-                                                gRobot[i]->Monitor.MountBasePosition[j] = Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.Center[j] + Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.Radius * cos(Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.Length * u / Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.Radius) * Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.StartVersor[j] + Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.Radius * sin(Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.Length * u / Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.Radius) * Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.CrossVersor[j];
-                                            }	
-										
-                                            if (gRobot[i]->Monitor.AxesNum != 6)
-                                            {//orientation interpolated linearly
-                                                for(j=3;j<gRobot[i]->Monitor.AxesNum;j++)
-                                                {
-                                                    if (u <= Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.uM)
+                                                for(j=0;j<BEZIER_XYZ;j++)
+                                                {//X,Y,Z on circle along with orientation
+                                                    //P = C + R cos(t) U + R sin(t) V
+                                                    if (u_tmp <= Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.uM)
                                                     {
-                                                        float tmp_u = u/Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.uM;
-                                                        gRobot[i]->Monitor.MountBasePosition[j] = (1-tmp_u) * Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.StartPointPath[j] + tmp_u * Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.MiddlePointPath[j];
+                                                        u_tmp = u_tmp/Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.uM;
+                                                        gRobot[i]->Monitor.MountBasePosition[j] = Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.Center[j] + Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.Radius * cos(Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.MiddleLength * u_tmp / Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.Radius) * Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.StartVersor[j] + Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.Radius * sin(Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.MiddleLength * u_tmp / Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.Radius) * Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.CrossVersor[j];
                                                     }
                                                     else
                                                     {
-                                                        float tmp_u = (u-Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.uM)/(1-Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.uM);
-                                                        gRobot[i]->Monitor.MountBasePosition[j] = (1-tmp_u) * Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.MiddlePointPath[j] + tmp_u * Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.TargetPointPath[j];
+                                                        u_tmp = (u_tmp-Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.uM)/(1-Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.uM);
+                                                        gRobot[i]->Monitor.MountBasePosition[j] = Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.Center[j] + Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.Radius * cos((Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.MiddleLength + (Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.Length - Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.MiddleLength) * u_tmp) / Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.Radius) * Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.StartVersor[j] + Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.Radius * sin((Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.MiddleLength + (Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.Length - Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.MiddleLength) * u_tmp) / Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.Radius) * Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.CrossVersor[j];
                                                     }
-                                                }
+                                                }	                                                
                                             }
                                             else
-                                            {//orientation uses quaternions slerp								
-                                                float tmpA,tmpB,tmpC;
-                                                Quat_Type tmpQuat;
+                                            { // interpolate cartesian axes along circle and let orientation follow along
+										
+                                                for(j=0;j<BEZIER_XYZ;j++)
+                                                {//X,Y,Z on circle
+                                                    //P = C + R cos(t) U + R sin(t) V
+                                                    gRobot[i]->Monitor.MountBasePosition[j] = Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.Center[j] + Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.Radius * cos(Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.Length * u_tmp / Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.Radius) * Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.StartVersor[j] + Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.Radius * sin(Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.Length * u_tmp / Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.Radius) * Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.CrossVersor[j];
+                                                }	
+										
+                                            }
+                                            
+                                            //tangential auto mode: calculate tangential angle along circle
+                                            if(gRobot[i]->Monitor.TangActive)
+                                            {
+                                                //calculate tangent angle on XY plane
+                                                float tmpRadiant[3];
+                                                float tmpTangent[3];
+                                                PointsToVector(Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.Center,gRobot[i]->Monitor.MountBasePosition,tmpRadiant);
+                                                CrossProduct(Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.Normal,tmpRadiant,tmpTangent);
+                                                tangAngle = atan2d(tmpTangent[1],tmpTangent[0]);
+                                            }
+                                        }
+                                        
+                                        //interpolate ORIENTATION
+                                        if (gRobot[i]->Monitor.AxesNum != 6)
+                                        {//orientation interpolated linearly
+                                            for(j=3;j<gRobot[i]->Monitor.AxesNum;j++)
+                                            {
                                                 if (u <= Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.uM)
                                                 {
-                                                    float tmp_u = u/Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.uM;
-                                                    Slerp(Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.StartQuat,Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.MiddleQuat,&tmpQuat,Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.QuatAngle1,tmp_u);
+                                                    float u_tmp = u/Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.uM;
+                                                    gRobot[i]->Monitor.MountBasePosition[j] = (1-u_tmp) * Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.StartPointPath[j] + u_tmp * Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.MiddlePointPath[j];
                                                 }
                                                 else
                                                 {
-                                                    float tmp_u = (u-Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.uM)/(1-Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.uM);
-                                                    Slerp(Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.MiddleQuat,Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.EndQuat,&tmpQuat,Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.QuatAngle2,tmp_u);
+                                                    float u_tmp = (u-Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.uM)/(1-Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.uM);
+                                                    gRobot[i]->Monitor.MountBasePosition[j] = (1-u_tmp) * Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.MiddlePointPath[j] + u_tmp * Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.TargetPointPath[j];
                                                 }
-                                                QuatToEuler(tmpQuat,gRobot[i]->Monitor.MountBasePosition[3],gRobot[i]->Monitor.MountBasePosition[4],gRobot[i]->Monitor.MountBasePosition[5],&tmpA,&tmpB,&tmpC);
-                                                gRobot[i]->Monitor.MountBasePosition[3] = tmpA;
-                                                gRobot[i]->Monitor.MountBasePosition[4] = tmpB;
-                                                gRobot[i]->Monitor.MountBasePosition[5] = tmpC;
                                             }
                                         }
-																		
+                                        else
+                                        {//orientation uses quaternions slerp								
+                                            float tmpA,tmpB,tmpC;
+                                            Quat_Type tmpQuat;
+                                            if (u <= Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.uM)
+                                            {
+                                                float u_tmp = u/Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.uM;
+                                                Slerp(Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.StartQuat,Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.MiddleQuat,&tmpQuat,Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.QuatAngle1,u_tmp);
+                                            }
+                                            else
+                                            {
+                                                float u_tmp = (u-Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.uM)/(1-Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.uM);
+                                                Slerp(Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.MiddleQuat,Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.EndQuat,&tmpQuat,Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.QuatAngle2,u_tmp);
+                                            }
+                                            QuatToEuler(tmpQuat,gRobot[i]->Monitor.MountBasePosition[3],gRobot[i]->Monitor.MountBasePosition[4],gRobot[i]->Monitor.MountBasePosition[5],&tmpA,&tmpB,&tmpC);
+                                            gRobot[i]->Monitor.MountBasePosition[3] = tmpA;
+                                            gRobot[i]->Monitor.MountBasePosition[4] = tmpB;
+                                            gRobot[i]->Monitor.MountBasePosition[5] = tmpC;
+                                        }
+                                        
+                                        
                                         //tangential auto mode: force C axis to follow path tangent
                                         if(gRobot[i]->Monitor.TangActive)
                                         {
-                                            //calculate tangent angle on XY plane
-                                            float tmpRadiant[3];
-                                            float tmpTangent[3];
-                                            PointsToVector(Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.Center,gRobot[i]->Monitor.MountBasePosition,&tmpRadiant);
-                                            CrossProduct(Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Path.Normal,tmpRadiant,&tmpTangent);
-                                            float tangAngle = atan2d(tmpTangent[1],tmpTangent[0]);
                                             //TODO - this assumes 4 or 6 axis robot
                                             gRobot[i]->Monitor.MountBasePosition[gRobot[i]->Monitor.AxesNum-1] = tangAngle + gRobot[i]->Monitor.TangOffset;
                                         }
-
+																		
                                         //memcpy(&OldAxesValues,&gRobot[i]->Monitor.JointPosition,sizeof(OldAxesValues));
                                         AxesMoved = 1; //movement active -> add whole conveyor offset when tracking
                                         Trf_Status = Transformations(&gRobot[i]->Parameters.Mechanics,TRF_INVERSE,OldAxesValues,gRobot[i]->Monitor.MountBasePosition,gRobot[i]->Monitor.JointPosition);
@@ -3710,13 +4062,13 @@ unsigned short RobotControl(unsigned long Robots, unsigned char RobotsNumber)
                                 {
 								
                                     gRobot[i]->Monitor.BlockLength = Buffer[i].MotionPackage[Buffer[i].EXEC_Index].BlockLength;
-								    gRobot[i]->Monitor.CompletedBlockLength = 0;
+                                    gRobot[i]->Monitor.CompletedBlockLength = 0;
                                     
                                     gRobot[i]->Monitor.Tool = Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Tool;
                                     gRobot[i]->Monitor.Frame = Buffer[i].MotionPackage[Buffer[i].EXEC_Index].Frame;
 							
                                     /* do not start movement if block length is zero */
-                                    if(gRobot[i]->Monitor.BlockLength == 0)
+                                    if(gRobot[i]->Monitor.BlockLength < TRF_EPSILON)
                                     {
                                         gRobot[i]->Monitor.CompletedBlockLength = 0;
                                         fRSVG[i].Enable = 0;
@@ -4130,14 +4482,14 @@ unsigned short RobotControl(unsigned long Robots, unsigned char RobotsNumber)
                                 //set M functions only the first time here (use DelayTime as dirty trick flag)
                                 if(Buffer[i].MotionPackage[Buffer[i].EXEC_Index].DelayTime == 0)
                                 {
-                                    M_count = 0;
-                                    M_value = Buffer[i].MotionPackage[Buffer[i].EXEC_Index].M_Index[M_count];
-                                    while((M_value > 0)&&(M_count < MAX_MFUNC_INLINE))
-                                    {
-                                        gRobot[i]->Monitor.M[M_value] = 1;
-                                        M_count++;
-                                        M_value = Buffer[i].MotionPackage[Buffer[i].EXEC_Index].M_Index[M_count];
-                                    }
+                                M_count = 0;
+                                M_value = Buffer[i].MotionPackage[Buffer[i].EXEC_Index].M_Index[M_count];
+                                while((M_value > 0)&&(M_count < MAX_MFUNC_INLINE))
+                                {
+                                gRobot[i]->Monitor.M[M_value] = 1;
+                                M_count++;
+                                M_value = Buffer[i].MotionPackage[Buffer[i].EXEC_Index].M_Index[M_count];
+                                }
                                 }
                                 Buffer[i].MotionPackage[Buffer[i].EXEC_Index].DelayTime = -1;
 

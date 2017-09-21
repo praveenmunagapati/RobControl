@@ -1,6 +1,7 @@
 #ifndef STATIC_H
 #define STATIC_H
 
+
 /* define static variables here */
 /* static variables are not modified at the end of a function call, their values are saved and available at the next call */
 static Robot_Monitor_Type OldMonitor[MAX_ROBOTS];

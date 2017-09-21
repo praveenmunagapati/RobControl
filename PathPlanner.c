@@ -3,10 +3,12 @@
 #include "trig.h"
 #include "Misc.h"
 #include "constants.h"
+#include "Transformations.h"
 #include <math.h>
 
 #define sign(a) ( (a<0)?-1:1 )
-#define max(a,b) ( (a>b)?a:b )
+#define max(a,b) ( (a>=b)?a:b )
+#define min(a,b) ( (a<b)?a:b )
 
 static float crt(float x)
 { //cubic root
@@ -73,12 +75,12 @@ float VectorLength(float A[3])
 	return (sqrtf(A[0]*A[0] + A[1]*A[1] + A[2]*A[2]));
 }
 
-unsigned short CrossProduct(float U[3], float V[3], float (*N)[3])
+unsigned short CrossProduct(float U[3], float V[3], float N[3])
 { // calculate scalar components of cross-product UxV
 	
-	(*N)[0] = U[1]*V[2]-U[2]*V[1];
-	(*N)[1] = U[2]*V[0]-U[0]*V[2];
-	(*N)[2] = U[0]*V[1]-U[1]*V[0];
+	N[0] = U[1]*V[2]-U[2]*V[1];
+	N[1] = U[2]*V[0]-U[0]*V[2];
+	N[2] = U[0]*V[1]-U[1]*V[0];
 
 	return 0;
 }
@@ -120,22 +122,22 @@ float AngleBetweenVectors(float U[6], float V[6])
 }
 
 
-unsigned short PointsToVector(float P1[6], float P2[6], float (*V)[3])
+unsigned short PointsToVector(float P1[6], float P2[6], float V[3])
 { //make vector V from point P1 to point P2, i.e. V = P2-P1
-	(*V)[0] = P2[0]-P1[0];
-	(*V)[1] = P2[1]-P1[1];
-	(*V)[2] = P2[2]-P1[2];
+	V[0] = P2[0]-P1[0];
+	V[1] = P2[1]-P1[1];
+	V[2] = P2[2]-P1[2];
 	return 0;	
 }
 
-unsigned short Normalize(float (*V)[3])
+unsigned short Normalize(float V[3])
 {
-	float norm = VectorLength((*V));
+	float norm = VectorLength(V);
 	if (norm != 0)
 	{
-		(*V)[0] /= norm;
-		(*V)[1] /= norm;
-		(*V)[2] /= norm;
+		V[0] /= norm;
+		V[1] /= norm;
+		V[2] /= norm;
 	}
 	return 0;
 }
@@ -153,11 +155,11 @@ unsigned short EvalCircle(Path_Type *Circle)
 	b = LineLengthCart(Circle->StartPointPath,Circle->TargetPointPath);
 	c = LineLengthCart(Circle->StartPointPath,Circle->MiddlePointPath);
 
-	PointsToVector(Circle->MiddlePointPath,Circle->TargetPointPath,&A);
-	PointsToVector(Circle->StartPointPath,Circle->TargetPointPath,&B);
-	PointsToVector(Circle->StartPointPath,Circle->MiddlePointPath,&C);
+	PointsToVector(Circle->MiddlePointPath,Circle->TargetPointPath,A);
+	PointsToVector(Circle->StartPointPath,Circle->TargetPointPath,B);
+	PointsToVector(Circle->StartPointPath,Circle->MiddlePointPath,C);
 	
-	CrossProduct(C,A,&Circle->Normal);
+	CrossProduct(C,A,Circle->Normal);
 	s = VectorLength(Circle->Normal);
 	
 	/* check that the three points are not collinear */
@@ -168,7 +170,7 @@ unsigned short EvalCircle(Path_Type *Circle)
 
 	Circle->Radius = a*b*c /(2.0f*s); //radius
 
-	Normalize(&Circle->Normal);	//normal versor	
+	Normalize(Circle->Normal);	//normal versor	
 	
 	alpha = a*a * DotProduct(B,C) / (2.0f*s*s);
 	beta = b*b * -DotProduct(A,C) / (2.0f*s*s);
@@ -181,43 +183,43 @@ unsigned short EvalCircle(Path_Type *Circle)
 
 	
 	/* calculate vectors from center to start, middle and target point */
-	PointsToVector(Circle->Center,Circle->StartPointPath,&Circle->StartVersor);
-	Normalize(&Circle->StartVersor);
+	PointsToVector(Circle->Center,Circle->StartPointPath,Circle->StartVersor);
+	Normalize(Circle->StartVersor);
 	
-	PointsToVector(Circle->Center,Circle->MiddlePointPath,&Circle->MiddleVersor);	
-	Normalize(&Circle->MiddleVersor);
+	PointsToVector(Circle->Center,Circle->MiddlePointPath,Circle->MiddleVersor);	
+	Normalize(Circle->MiddleVersor);
 
-	PointsToVector(Circle->Center,Circle->TargetPointPath,&Circle->EndVersor);	
-	Normalize(&Circle->EndVersor);
+	PointsToVector(Circle->Center,Circle->TargetPointPath,Circle->EndVersor);	
+	Normalize(Circle->EndVersor);
 
 	/* calculate cross versor */
-	CrossProduct(Circle->Normal,Circle->StartVersor,&Circle->CrossVersor);	
-	Normalize(&Circle->CrossVersor);
+	CrossProduct(Circle->Normal,Circle->StartVersor,Circle->CrossVersor);	
+	Normalize(Circle->CrossVersor);
 	
 	/* calculate arc length to end point */
     float Test[3];
-    CrossProduct(Circle->StartVersor,Circle->EndVersor,&Test);
-    float TempDotProd = DotProduct(Circle->StartVersor,Circle->EndVersor);
+    CrossProduct(Circle->StartVersor,Circle->EndVersor,Test);
+    float tmpDotProd = DotProduct(Circle->StartVersor,Circle->EndVersor);
     //argument of acos must be between +/- 1 (avoid numerical errors)
-    if (TempDotProd > 1)
-        TempDotProd = 1;
-    else if (TempDotProd < -1)
-        TempDotProd = -1;
-    Circle->Length = Circle->Radius * acos(TempDotProd);
+    if (tmpDotProd > 1)
+        tmpDotProd = 1;
+    else if (tmpDotProd < -1)
+        tmpDotProd = -1;
+    Circle->Length = Circle->Radius * acos(tmpDotProd);
     if (sign(Circle->Normal[2])*sign(Test[2]) < 0)
     {
         Circle->Length = Circle->Radius * 2.0f * PI - Circle->Length;
     }
 	
 	/* calculate arc length to middle point */
-	CrossProduct(Circle->StartVersor,Circle->MiddleVersor,&Test);
-	TempDotProd = DotProduct(Circle->StartVersor,Circle->MiddleVersor);
+	CrossProduct(Circle->StartVersor,Circle->MiddleVersor,Test);
+	tmpDotProd = DotProduct(Circle->StartVersor,Circle->MiddleVersor);
 	//argument of acos must be between +/- 1 (avoid numerical errors)
-	if (TempDotProd > 1)
-		TempDotProd = 1;
-	else if (TempDotProd < -1)
-		TempDotProd = -1;
-	Circle->MiddleLength = Circle->Radius * acos(TempDotProd);
+	if (tmpDotProd > 1)
+		tmpDotProd = 1;
+	else if (tmpDotProd < -1)
+		tmpDotProd = -1;
+	Circle->MiddleLength = Circle->Radius * acos(tmpDotProd);
 	if (sign(Circle->Normal[2])*sign(Test[2]) < 0)
 	{
 		Circle->MiddleLength = Circle->Radius * 2.0f * PI - Circle->MiddleLength;
@@ -753,6 +755,418 @@ unsigned short DynamicLimitsViolated(float P1[6], float P2[6], int Size, struct 
 }
 
 
+unsigned short  LineCrossBox(float L1[6],float L2[6],float B1[6],float B2[6])
+{ //checks if the segment from L1 to L2 crosses the box defined by B1 and B2
+    //note that line (as defined by L1-L2) might still cross box but outside L1-L2 segment
+    //in that case the function returns false
+    //https://tavianator.com/fast-branchless-raybounding-box-intersections/
+    
+    float t[6];
+    float D[3]; //line direction
+    PointsToVector(L1,L2,D);
+   
+    int i;
+    for (i=0;i<3;i++)
+    {
+        if (D[i]!=0)
+        {
+            t[2*i+0] = (B1[i] - L1[i])/D[i];
+            t[2*i+1] = (B2[i] - L1[i])/D[i];
+        }
+        else if (L1[i]>=min(B1[i],B2[i]) && L1[i]<=max(B1[i],B2[i]))
+        {
+            t[2*i+0] = FLOAT_MAX;
+            t[2*i+1] = -FLOAT_MAX;        
+        }
+        else
+        {
+            t[2*i+0] = FLOAT_MAX;
+            t[2*i+1] = FLOAT_MAX;        
+        }
+    }
 
+    float tmin = max(max(min(t[0], t[1]), min(t[2], t[3])), min(t[4], t[5]));
+    float tmax = min(min(max(t[0], t[1]), max(t[2], t[3])), max(t[4], t[5]));
+        
+    if (tmax<0 || tmin>1 || tmin>tmax)
+        return 0;
+    else
+        return 1;
+
+}
+
+
+unsigned short PointInBox(float P[6],float B1[6],float B2[6])
+{ //checks if the point P is inside the box (returns 1) or outside (returns 0)
+    // XYZ says what axes are in and out of the box limits
+    
+    int i;
+    unsigned short tmpRet = 1;
+            
+    for (i=0;i<3;i++)
+        tmpRet *= (unsigned short) (P[i]<=max(B1[i],B2[i]) && P[i]>=min(B1[i],B2[i]));
+    
+    return tmpRet;
+}
+
+
+
+unsigned short WorkspaceMonitor(unsigned char MovementType, Path_Type* Path, float Tool[6], Robot_Parameter_Workspace_Type Workspace[MAX_ZONE], unsigned short AxesNum, Mech_Type* Mechanics)
+{ // check if planned movement violates the defined workspace
+    // returns index of violated zone (1..MAX_ZONE), 0 otherwise
+
+    //path workspace monitoring
+    short calculatePoints = 0;
+    float subInc,tmpRotAngle;
+    int k,j;
+    short sub;
+    for (k=0;k<MAX_ZONE;k++)
+    {
+        //check for allowed and forbidden zones
+        if (!Workspace[k].Type)
+            continue;
+
+        Point_Type subPoints[WS_SUBPOINTS];
+
+        memcpy(subPoints[0].Axes,Path->StartPointPath,24);
+                                    
+        //calculate inner subpoints in path only if not done yet
+        //do not calculate at all if no zones are defined
+        //avoid repeating calculations for following zones
+        if (!calculatePoints)
+        {
+            calculatePoints = 1;
+            subInc = 1.0/(WS_SUBPOINTS-1);                
+            
+            if (MovementType == MOVE_CIRCLE)
+            {
+                tmpRotAngle = Path->Length / Path->Radius;
+                if (tmpRotAngle > 2*PI)
+                    tmpRotAngle = 2*PI; //consider only one full rotation at maximum                                           
+            }
+            
+
+            for (sub=1;sub<WS_SUBPOINTS;sub++)
+            {
+
+                Point_Type tmpTargetJ, tmpTargetX;
+                                            
+                //interpolate movement at BlockLength/(WS_SUBPOINTS-1)*sub
+                float u = sub * subInc;
+                
+                switch(MovementType)
+                {
+                    case MOVE_PTP:
+                        for(j=0;j<AxesNum;j++)
+                        {
+                            tmpTargetJ.Axes[j] = (1-u) * Path->StartPointJoint[j] + u * Path->TargetPointJoint[j];
+                        }           
+                        //calculate corresponding TCP with direct TRF
+                        Transformations(Mechanics,TRF_DIRECT,tmpTargetJ.Axes,Path->StartPointPath,tmpTargetX.Axes);
+                        break;
+
+                    case MOVE_CIRCLE:
+                        for(j=0;j<3;j++)
+                        {//X,Y,Z on circle
+                            //P = C + R cos(t) U + R sin(t) V
+                            tmpTargetX.Axes[j] = Path->Center[j] + Path->Radius * cos(tmpRotAngle * u) * Path->StartVersor[j] + 
+                                Path->Radius * sin(tmpRotAngle * u) * Path->CrossVersor[j];
+                        }
+                        break;
+
+                    case MOVE_SPLINE:      
+                        EvaluateBezier(Path->Spline.CtrlPoint,u,&tmpTargetX,BEZIER_XYZ,BEZIER_CUBIC);
+                        break;
+                }   
+            
+                //add tool
+                if (AxesNum < 5)
+                {
+                    SubFrame2D(Tool,tmpTargetX.Axes,subPoints[sub].Axes);
+                }
+                else
+                {
+                    SubFrame3D(Tool,tmpTargetX.Axes,0,0,0,subPoints[sub].Axes);
+                }		                                
+            }
+        }
+
+                                
+        //check that lines between subpoints do not violate workspace
+        for (sub=1;sub<WS_SUBPOINTS;sub++)
+        {
+            unsigned short tmpInsideL1 = PointInBox(subPoints[sub-1].Axes,Workspace[k].PositionMin,Workspace[k].PositionMax);
+            unsigned short tmpInsideL2 = PointInBox(subPoints[sub].Axes,Workspace[k].PositionMin,Workspace[k].PositionMax);
+            unsigned short tmpHitBox = LineCrossBox(subPoints[sub-1].Axes,subPoints[sub].Axes,Workspace[k].PositionMin,Workspace[k].PositionMax);
+            if (((!tmpInsideL1 || !tmpInsideL2) && Workspace[k].Type==ZONE_SAFE) || (tmpHitBox && Workspace[k].Type==ZONE_FORBIDDEN))
+            {                   
+                return (k+1);
+            }                
+        }
+    }            
+    
+    return 0; //no violation occurred if execution arrives here
+    
+}
+
+
+//local help function
+unsigned short ControlPoints(unsigned char MovementType,Path_Type* Path, float BlockLength, Point_Type CtrlPoints[2], unsigned char Edge, unsigned short AxesNum, Mech_Type* Mechanics)
+{//calculate two control points of a round edge
+        
+    int j;
+    float DistA, DistB;
+  
+    switch (MovementType)
+    {
+        case MOVE_LINE:
+            //linear interpolation
+            if (Edge == EDGE_END)
+            {
+                DistA = 1 - Path->EndEdge.Radius / BlockLength;
+                DistB = 1 - Path->EndEdge.Radius / BlockLength / 2.0f;
+            }
+            else //EDGE_START
+            {
+                DistA = Path->StartEdge.Radius / BlockLength / 2.0f;
+                DistB = Path->StartEdge.Radius / BlockLength;
+            }
+
+            for (j=0;j<BEZIER_XYZ;j++) //note that only cartesian coordinates are included
+            {
+                CtrlPoints[0].Axes[j] = (1-DistA) * Path->StartPointPath[j] + DistA * Path->TargetPointPath[j];
+                CtrlPoints[1].Axes[j] = (1-DistB) * Path->StartPointPath[j] + DistB * Path->TargetPointPath[j];
+            }
+            break;
+            
+        case MOVE_CIRCLE:
+            
+            if (Edge == EDGE_END)
+            {
+                DistA = 1 - Path->EndEdge.Radius / BlockLength;
+                //find control point #0
+                for (j=0;j<BEZIER_XYZ;j++) //note that only cartesian coordinates are included
+                {
+                    //P = C + R cos(t) U + R sin(t) V
+                    CtrlPoints[0].Axes[j] = Path->Center[j] + Path->Radius * cos(DistA*BlockLength/Path->Radius) * Path->StartVersor[j] + Path->Radius * sin(DistA*BlockLength/Path->Radius) * Path->CrossVersor[j];
+                }
+                //find control point #1 along tangent at distance Path->EndEdge.Radius/2
+                float tmpCrossVersor[3];
+                PointsToVector(Path->Center,CtrlPoints[0].Axes,tmpCrossVersor);
+                float tmpEndVersor[3];
+                CrossProduct(Path->Normal,tmpCrossVersor,tmpEndVersor);
+                Normalize(tmpEndVersor);
+                for (j=0;j<BEZIER_XYZ;j++)
+                {
+                    CtrlPoints[1].Axes[j] = CtrlPoints[0].Axes[j] + tmpEndVersor[j] * Path->EndEdge.Radius/2;
+                }
+            }
+            else //EDGE_START
+            {
+                DistA = Path->StartEdge.Radius / BlockLength;
+                //find control point #4
+                for (j=0;j<BEZIER_XYZ;j++) //note that only cartesian coordinates are included
+                {
+                    //P = C + R cos(t) U + R sin(t) V
+                    CtrlPoints[1].Axes[j] = Path->Center[j] + Path->Radius * cos(DistA*BlockLength/Path->Radius) * Path->StartVersor[j] + Path->Radius * sin(DistA*BlockLength/Path->Radius) * Path->CrossVersor[j];
+                }
+                //find control point #3 along tangent at distance Path->EndEdge.Radius/2
+                float tmpCrossVersor[3];
+                PointsToVector(Path->Center,CtrlPoints[1].Axes,tmpCrossVersor);
+                float tmpEndVersor[3];
+                CrossProduct(Path->Normal,tmpCrossVersor,tmpEndVersor);
+                Normalize(tmpEndVersor);
+                for (j=0;j<BEZIER_XYZ;j++)
+                {//negative because point #3 is closer to beginning of movement
+                    CtrlPoints[0].Axes[j] = CtrlPoints[1].Axes[j] - tmpEndVersor[j] * Path->StartEdge.Radius/2;
+                }
+            }
+
+            break;
+
+        case MOVE_PTP:
+            //first interpolate linearly in joints coords, then transform results into path coords
+            //note that for PTP movements some control points should also hold the orientation (#0 for end edge and #4 for start edge)
+            if (Edge == EDGE_END)
+            {
+                DistA = 1 - Path->EndEdge.Radius / BlockLength;
+                
+                //find control point #5 (is #0 in joint world)
+                for(j=0;j<AxesNum;j++)
+                {
+                    CtrlPoints[5].Axes[j] = (1-DistA) * Path->StartPointJoint[j] + DistA * Path->TargetPointJoint[j];
+                }
+
+                //find control point #0
+                Transformations(Mechanics,TRF_DIRECT,CtrlPoints[5].Axes,Path->TargetPointPath,CtrlPoints[0].Axes);
+  
+                //find control point #1 along tangent at distance Path->EndEdge.Radius/2
+                DistA += (1.0/Path->EndEdge.Radius/10.0);
+                if (DistA > 1)
+                    DistA = 1;
+                float tmpAxesValues[6];
+                for(j=0;j<AxesNum;j++)
+                {
+                    tmpAxesValues[j] = (1-DistA) * Path->StartPointJoint[j] + (DistA) * Path->TargetPointJoint[j];
+                }
+
+                float tmpPathValues[6];
+                Transformations(Mechanics,TRF_DIRECT,tmpAxesValues,Path->TargetPointPath,tmpPathValues);
+                float tmpTangent[3];
+                for (j=0;j<BEZIER_XYZ;j++)
+                {
+                    tmpTangent[j] = tmpPathValues[j] - CtrlPoints[0].Axes[j];
+                }
+
+                Normalize(tmpTangent);
+                for (j=0;j<BEZIER_XYZ;j++)
+                {
+                    CtrlPoints[1].Axes[j] = CtrlPoints[0].Axes[j] + tmpTangent[j] * Path->EndEdge.Radius/2;
+                }
+            }
+            else //EDGE_START
+            {
+                DistA = Path->StartEdge.Radius / BlockLength;
+                
+                //find control point #6 (is #4 in joint world)
+                for(j=0;j<AxesNum;j++)
+                {
+                    CtrlPoints[3].Axes[j] = (1-DistA) * Path->StartPointJoint[j] + DistA * Path->TargetPointJoint[j];
+                }
+                
+                //find control point #4
+                Transformations(Mechanics,TRF_DIRECT,CtrlPoints[3].Axes,Path->StartPointPath,CtrlPoints[1].Axes);
+  
+                //find control point #3 along tangent at distance Path->StartEdge.Radius/2
+                DistA -= (1.0/Path->StartEdge.Radius/10.0);
+                if (DistA < 0)
+                    DistA = 0;
+                float tmpAxesValues[6];
+                for(j=0;j<AxesNum;j++)
+                {
+                    tmpAxesValues[j] = (1-DistA) * Path->StartPointJoint[j] + DistA * Path->TargetPointJoint[j];
+                }
+
+                float tmpPathValues[6];
+                Transformations(Mechanics,TRF_DIRECT,tmpAxesValues,Path->StartPointPath,tmpPathValues);
+                float tmpTangent[3];
+                for (j=0;j<BEZIER_XYZ;j++)
+                {
+                    tmpTangent[j] = tmpPathValues[j] - CtrlPoints[1].Axes[j];
+                }
+
+                Normalize(tmpTangent);
+                for (j=0;j<BEZIER_XYZ;j++)
+                {
+                    CtrlPoints[0].Axes[j] = CtrlPoints[1].Axes[j] + tmpTangent[j] * Path->StartEdge.Radius/2;
+                }
+            }
+
+            break;
+
+    }
+    
+    return 0;
+
+}
+
+
+unsigned short RoundEdgePoints(MotionPackage_Type* Movement, MotionPackage_Type* MovementPrev, unsigned short AxesNum, Mech_Type* Mechanics)
+{
+
+    int k;
+    
+    //limit radius size to half of the block length
+    Movement->Path.StartEdge.Radius = min(MovementPrev->Round,Movement->BlockLengthIdeal/2.0f);
+    MovementPrev->Path.EndEdge.Radius = min(MovementPrev->Round,MovementPrev->BlockLengthIdeal/2.0f);
+    
+    //in case of circle also limit radius to half circumference (because BlockLengthIdeal could be many revolutions)
+    if (Movement->MovementType == MOVE_CIRCLE)
+    {
+        Movement->Path.StartEdge.Radius = min(Movement->Path.StartEdge.Radius,Movement->Path.Radius*PI);
+    }
+    if (MovementPrev->MovementType == MOVE_CIRCLE)
+    {
+        MovementPrev->Path.EndEdge.Radius = min(MovementPrev->Path.EndEdge.Radius,MovementPrev->Path.Radius*PI);
+    }
+    
+    if (Movement->BlockLengthIdeal != 0 && MovementPrev->BlockLengthIdeal != 0 && MovementPrev->MovementType != MOVE_SPLINE)
+    {//both blocks have non-zero length -> can apply round edge
+              
+        //control points 0 and 1 (first half)
+        ControlPoints(MovementPrev->MovementType,&MovementPrev->Path,MovementPrev->BlockLengthIdeal,&Movement->Path.StartEdge.CtrlPoint[0],EDGE_END,AxesNum,Mechanics);
+        
+        //control point 2 (middle point)
+        memcpy(Movement->Path.StartEdge.CtrlPoint[2].Axes, Movement->Path.StartPointPath,24);
+
+        //control points 3 and 4 (second half)        
+        ControlPoints(Movement->MovementType,&Movement->Path,Movement->BlockLengthIdeal,&Movement->Path.StartEdge.CtrlPoint[3],EDGE_START,AxesNum,Mechanics);
+
+        //calculate start edge length (only part included in current block) and previous block's end edge length (only part included in previous block)
+        Movement->Path.StartEdge.Length = BezierLengthHalf2(Movement->Path.StartEdge.CtrlPoint,BEZIER_XYZ,BEZIER_QUARTIC);
+        MovementPrev->Path.EndEdge.Length = BezierLengthHalf1(Movement->Path.StartEdge.CtrlPoint,BEZIER_XYZ,BEZIER_QUARTIC);
+
+        // adjust length of previous and current block considering start edge
+        //NOTE: Edge Radius and Length are in mm, but blocklength could be in deg (e.g. PTP or ML/MC with FA programmed)
+        //solution: use percentage change over full block length
+        Movement->BlockLength += ((Movement->Path.StartEdge.Length - Movement->Path.StartEdge.Radius)/Movement->BlockLengthIdeal * Movement->BlockLength);
+        MovementPrev->BlockLength += ((MovementPrev->Path.EndEdge.Length - MovementPrev->Path.EndEdge.Radius)/MovementPrev->BlockLengthIdeal * MovementPrev->BlockLength);
+
+    }
+    else //there is no round edge -> all points are coincident at transition
+    {				
+        for(k=0;k<5;k++)
+        {
+            memcpy(Movement->Path.StartEdge.CtrlPoint[k].Axes,Movement->Path.StartPointPath,24);
+        }
+        for(k=5;k<7;k++)
+        {
+            memcpy(Movement->Path.StartEdge.CtrlPoint[k].Axes,Movement->Path.StartPointJoint,24);
+        }
+        Movement->Path.StartEdge.Length = 0;
+        Movement->Path.StartEdge.Radius = 0;
+        MovementPrev->Path.EndEdge.Length = 0;										
+        MovementPrev->Path.EndEdge.Radius = 0;
+    }
+				
+    //copy points to previous block
+    memcpy(MovementPrev->Path.EndEdge.CtrlPoint,Movement->Path.StartEdge.CtrlPoint,sizeof(Point_Type)*7);
+    
+    return 0;
+}
+
+
+
+float PTPLength(Path_Type* Path, unsigned short AxesNum, Mech_Type* Mechanics)
+{ //calculates approx. cartesian length of PTP movement (required when adding round edge to PTP)
+    
+    Point_Type Point[2];
+    int i,j;
+    int k = 10; //increase number of points for more accuracy
+    float Length = 0;
+	
+    memcpy(Point[0].Axes,Path->StartPointPath,24);
+	
+    //evaluate the BezierCurve at different points and then add the distances between them
+    for(i=1;i<=k;i++)
+    {
+        float tmpAxesValues[6];
+        //interpolate PTP to find next point
+        for(j=0;j<AxesNum;j++)
+        {
+            tmpAxesValues[j] = (1-(float)i/(float)k) * Path->StartPointJoint[j] + (float)i/(float)k * Path->TargetPointJoint[j];
+        }
+        
+        //transform in path coords. (assuming direct TRF never fail...)					
+        Transformations(Mechanics,TRF_DIRECT,tmpAxesValues,Point[0].Axes,Point[1].Axes);
+
+        //calculate segment length
+        Length += LineLength(Point[0].Axes,Point[1].Axes,BEZIER_XYZ);
+        Point[0] = Point[1];
+    }
+	
+    return Length;
+
+}
 
 

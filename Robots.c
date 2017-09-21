@@ -39,7 +39,7 @@ unsigned short ArmDirect(Link_Type Links[6], float JointAxes[6], float PathAxes[
     ZeroFrame[5] = Links[0].Rotation.Z;
 
     //temporary axes values
-    float TempAxes[6];
+    float tmpAxes[6];
 
     /* check mechanical parameters consistency */
     if ((a1z < 0)||(a2z <= 0)||(a3z < 0)||((a3x+a4x) <= 0)||(a5x <= 0))
@@ -53,13 +53,13 @@ unsigned short ArmDirect(Link_Type Links[6], float JointAxes[6], float PathAxes[
     float fff = a1z - sind(Q2)*aaa + cosd(Q2)*(bbb+a2z);
 
     /* X axis */
-    TempAxes[0] = cosd(Q1)*ddd - sind(Q1)*sind(Q4)*sind(Q5)*a5x;
+    tmpAxes[0] = cosd(Q1)*ddd - sind(Q1)*sind(Q4)*sind(Q5)*a5x;
 
     /* Y axis */	
-    TempAxes[1] = sind(Q1)*ddd + cosd(Q1)*sind(Q4)*sind(Q5)*a5x;
+    tmpAxes[1] = sind(Q1)*ddd + cosd(Q1)*sind(Q4)*sind(Q5)*a5x;
 	
     /* Z axis */
-    TempAxes[2] = fff;
+    tmpAxes[2] = fff;
 
 	
     /* compose R_total from all joints rotations */	
@@ -86,12 +86,12 @@ unsigned short ArmDirect(Link_Type Links[6], float JointAxes[6], float PathAxes[
     /* A,B,C axis */
     float A,B,C;
     DecomposeMatrix(R_total,PathAxes[3],PathAxes[4],PathAxes[5],&A,&B,&C);
-    TempAxes[3] = A;
-    TempAxes[4] = B;
-    TempAxes[5] = C;
+    tmpAxes[3] = A;
+    tmpAxes[4] = B;
+    tmpAxes[5] = C;
 
     /* consider zero offset (position and orientation of base point with respect to world origin) */
-    SubFrame3D(TempAxes,ZeroFrame,PathAxes[3],PathAxes[4],PathAxes[5],Axes);
+    SubFrame3D(tmpAxes,ZeroFrame,PathAxes[3],PathAxes[4],PathAxes[5],Axes);
 
     int i=0;
     for(i=0;i<6;i++)
@@ -118,18 +118,18 @@ unsigned short ArmInverse(Link_Type Links[6], float PathAxes[6], float JointAxes
     ZeroFrame[5] = Links[0].Rotation.Z;
 
     //temporary axes values
-    float TempAxes[6], WP[6];
+    float tmpAxes[6], WP[6];
 
     /* consider zero offset (position and orientation of base point with respect to world origin) */
-    AddFrame3D(PathAxes,ZeroFrame,PathAxes[3],PathAxes[4],PathAxes[5],TempAxes);
+    AddFrame3D(PathAxes,ZeroFrame,PathAxes[3],PathAxes[4],PathAxes[5],tmpAxes);
 
     //simplify notation
-    float X = TempAxes[0];
-    float Y = TempAxes[1];
-    float Z = TempAxes[2];
-    float A = TempAxes[3];
-    float B = TempAxes[4];
-    float C = TempAxes[5];
+    float X = tmpAxes[0];
+    float Y = tmpAxes[1];
+    float Z = tmpAxes[2];
+    float A = tmpAxes[3];
+    float B = tmpAxes[4];
+    float C = tmpAxes[5];
 
     float a1x = Links[1].Offset.X;
     //float a1y = Links[1].Offset.Y;
@@ -269,16 +269,16 @@ unsigned short ArmInverse(Link_Type Links[6], float PathAxes[6], float JointAxes
 
 
     //transpose R_arm
-    float Temp;
-    Temp = R_arm[0][1];
+    float tmpR;
+    tmpR = R_arm[0][1];
     R_arm[0][1] = R_arm[1][0];
-    R_arm[1][0] = Temp;
-    Temp = R_arm[0][2];
+    R_arm[1][0] = tmpR;
+    tmpR = R_arm[0][2];
     R_arm[0][2] = R_arm[2][0];
-    R_arm[2][0] = Temp;
-    Temp = R_arm[1][2];
+    R_arm[2][0] = tmpR;
+    tmpR = R_arm[1][2];
     R_arm[1][2] = R_arm[2][1];
-    R_arm[2][1] = Temp;
+    R_arm[2][1] = tmpR;
 
     MatMult(R_arm,R_total,R_wrist);
 
@@ -417,7 +417,7 @@ unsigned short ScaraDirect(Link_Type Links[6], float JointAxes[6], float PathAxe
     ZeroFrame[3] = Links[0].Rotation.Z;
 
     //temporary axes values
-    float TempAxes[6];
+    float tmpAxes[6];
 
     /* check mechanical parameters consistency */
     if ((a1x <= 0)||(a2x <= 0))
@@ -426,22 +426,22 @@ unsigned short ScaraDirect(Link_Type Links[6], float JointAxes[6], float PathAxe
     }
 
     /* X axis */
-    TempAxes[0] = a1x * cosd(Q1) + a2x * cosd(Q1+Q2);
+    tmpAxes[0] = a1x * cosd(Q1) + a2x * cosd(Q1+Q2);
 
     /* Y axis */	
-    TempAxes[1] = a1x * sind(Q1) + a2x * sind(Q1+Q2);
+    tmpAxes[1] = a1x * sind(Q1) + a2x * sind(Q1+Q2);
 	
     /* Z axis */
-    TempAxes[2] = a1z + a2z + Q3 + (a4z * Q4 / 360.0f);
+    tmpAxes[2] = a1z + a2z + Q3 + (a4z * Q4 / 360.0f);
 
     /* C axis */
-    TempAxes[3] = Q1 + Q2 + Q4;
+    tmpAxes[3] = Q1 + Q2 + Q4;
 
     /* adjust positions of axis C with +-2PI to bring it closer to the desired value */
-    TempAxes[3] = Modulo2PI(TempAxes[3],PathAxes[3]);
+    tmpAxes[3] = Modulo2PI(tmpAxes[3],PathAxes[3]);
 
     /* consider zero offset (position and orientation of base point with respect to world origin) */
-    SubFrame2D(TempAxes,ZeroFrame,Axes);
+    SubFrame2D(tmpAxes,ZeroFrame,Axes);
 
     return 0; //STATUS_OK;
 
@@ -459,16 +459,16 @@ unsigned short ScaraInverse(Link_Type Links[6], float PathAxes[6], float JointAx
     ZeroFrame[3] = Links[0].Rotation.Z;
 
     //temporary axes values
-    float TempAxes[6];
+    float tmpAxes[6];
 
     /* consider zero offset (position and orientation of base point with respect to world origin) */
-    AddFrame2D(PathAxes,ZeroFrame,TempAxes);
+    AddFrame2D(PathAxes,ZeroFrame,tmpAxes);
 
     //simplify notation
-    float X = TempAxes[0];
-    float Y = TempAxes[1];
-    float Z = TempAxes[2];
-    float C = TempAxes[3];
+    float X = tmpAxes[0];
+    float Y = tmpAxes[1];
+    float Z = tmpAxes[2];
+    float C = tmpAxes[3];
     float a1x = Links[1].Offset.X;
     float a1z = Links[1].Offset.Z;
     float a2x = Links[2].Offset.X;
@@ -571,7 +571,7 @@ unsigned short PalletDirect(Link_Type Links[6], float JointAxes[6], float PathAx
     ZeroFrame[3] = Links[0].Rotation.Z;
 
     //temporary axes values
-    float TempAxes[6];
+    float tmpAxes[6];
 
     /* check mechanical parameters consistency */
     if ((a1z < 0)||(a2z <= 0)||(a3x <= 0)||(a4x < 0)||(a4z < 0))
@@ -582,21 +582,21 @@ unsigned short PalletDirect(Link_Type Links[6], float JointAxes[6], float PathAx
     float rho = a1x + a2z*sind(Q2) + a3x*cosd(Q2+Q3) + a4x;
 
     /* X axis */
-    TempAxes[0] = rho * cosd(Q1);
+    tmpAxes[0] = rho * cosd(Q1);
 
     /* Y axis */	
-    TempAxes[1] = rho * sind(Q1);
+    tmpAxes[1] = rho * sind(Q1);
 	
     /* Z axis */
-    TempAxes[2] = a1z + a2z*cosd(Q2) - a3x*sind(Q2+Q3) - a4z;
+    tmpAxes[2] = a1z + a2z*cosd(Q2) - a3x*sind(Q2+Q3) - a4z;
 
     /* C axis */
-    TempAxes[3] = Q1 + Q4;
+    tmpAxes[3] = Q1 + Q4;
     /* adjust positions of axis C with +-2PI to bring it closer to the desired value */
-    TempAxes[3] = Modulo2PI(TempAxes[3],PathAxes[3]);
+    tmpAxes[3] = Modulo2PI(tmpAxes[3],PathAxes[3]);
 
     /* consider zero offset (position and orientation of base point with respect to world origin) */
-    SubFrame2D(TempAxes,ZeroFrame,Axes);
+    SubFrame2D(tmpAxes,ZeroFrame,Axes);
 
     return STATUS_OK;
 
@@ -614,16 +614,16 @@ unsigned short PalletInverse(Link_Type Links[6], float PathAxes[6], float JointA
     ZeroFrame[3] = Links[0].Rotation.Z;
 
     //temporary axes values
-    float TempAxes[6];
+    float tmpAxes[6];
 
     /* consider zero offset (position and orientation of base point with respect to world origin) */
-    AddFrame2D(PathAxes,ZeroFrame,TempAxes);
+    AddFrame2D(PathAxes,ZeroFrame,tmpAxes);
 
     //simplify notation
-    float X = TempAxes[0];
-    float Y = TempAxes[1];
-    float Z = TempAxes[2];
-    float C = TempAxes[3];
+    float X = tmpAxes[0];
+    float Y = tmpAxes[1];
+    float Z = tmpAxes[2];
+    float C = tmpAxes[3];
     float a1x = Links[1].Offset.X;
     float a1z = Links[1].Offset.Z;
     float a2z = Links[2].Offset.Z;
@@ -727,7 +727,7 @@ unsigned short DeltaDirect(Link_Type Links[6], float JointAxes[6], float PathAxe
     ZeroFrame[3] = Links[0].Rotation.Z;
 
     //temporary axes values
-    float TempAxes[6];
+    float tmpAxes[6];
 
     /* check mechanical parameters consistency */
     if ((a1x <= 0)||(a1z <= 0)||(a2x <= 0)||(a2z <= 0)||(a3z < 0))
@@ -784,22 +784,22 @@ unsigned short DeltaDirect(Link_Type Links[6], float JointAxes[6], float PathAxe
     {
 
         /* Z axis */
-        TempAxes[2] = -0.5*(b+sqrtf(d))/a -a3z;
+        tmpAxes[2] = -0.5*(b+sqrtf(d))/a -a3z;
         float Z = Axes[2];
 
         /* X axis */
-        TempAxes[0] = (a1 * Z + b1)/dnm;
+        tmpAxes[0] = (a1 * Z + b1)/dnm;
 	
         /* Y axis */	
-        TempAxes[1] = (a2 * Z + b2)/dnm;
+        tmpAxes[1] = (a2 * Z + b2)/dnm;
 			
         /* C axis */
-        TempAxes[3] = Q4;		
+        tmpAxes[3] = Q4;		
         /* adjust positions of axis C with +-2PI to bring it closer to the desired value */
-        TempAxes[3] = Modulo2PI(TempAxes[3],PathAxes[3]);
+        tmpAxes[3] = Modulo2PI(tmpAxes[3],PathAxes[3]);
 
         /* consider zero offset (position and orientation of base point with respect to world origin) */
-        SubFrame2D(TempAxes,ZeroFrame,Axes);
+        SubFrame2D(tmpAxes,ZeroFrame,Axes);
 		
         return STATUS_OK;
 	
@@ -844,16 +844,16 @@ unsigned short DeltaInverse(Link_Type Links[6], float PathAxes[6], float JointAx
     ZeroFrame[3] = Links[0].Rotation.Z;
 
     //temporary axes values
-    float TempAxes[6];
+    float tmpAxes[6];
 
     /* consider zero offset (position and orientation of base point with respect to world origin) */
-    AddFrame2D(PathAxes,ZeroFrame,TempAxes);
+    AddFrame2D(PathAxes,ZeroFrame,tmpAxes);
 
     //simplify notation
-    float X = TempAxes[0];
-    float Y = TempAxes[1];
-    float Z = TempAxes[2];
-    float C = TempAxes[3];
+    float X = tmpAxes[0];
+    float Y = tmpAxes[1];
+    float Z = tmpAxes[2];
+    float C = tmpAxes[3];
     float a1x = Links[1].Offset.X;	//radius top
     float a1z = Links[1].Offset.Z;	//arm top
     float a2x = Links[2].Offset.X;	//radius bottom

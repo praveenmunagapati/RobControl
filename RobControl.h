@@ -33,6 +33,16 @@
 #define ERR_LIMIT_Z 1173
 #define ERR_LIMIT_Y 1172
 #define ERR_LIMIT_X 1171
+#define ERR_WORKSPACE_ZONE10 1169
+#define ERR_WORKSPACE_ZONE9 1168
+#define ERR_WORKSPACE_ZONE8 1167
+#define ERR_WORKSPACE_ZONE7 1166
+#define ERR_WORKSPACE_ZONE6 1165
+#define ERR_WORKSPACE_ZONE5 1164
+#define ERR_WORKSPACE_ZONE4 1163
+#define ERR_WORKSPACE_ZONE3 1162
+#define ERR_WORKSPACE_ZONE2 1161
+#define ERR_WORKSPACE_ZONE1 1160
 #define ERR_PP_CIRCLE_MIDDLEPOINT 1152
 #define ERR_PP_CIRCLE_LENGTH 1151
 #define ERR_PP_CIRCLEPOINTS 1150
@@ -88,6 +98,7 @@
 #define TRF_POSE_NEGATIVE 8
 #define RING_BUFFER_SIZE 100
 #define BUFFER_LENGTH 20
+#define MAX_ZONE 10
 #define MAX_PRG_SIZE 10000
 #define MAX_ROBOTS 8
 #define MAX_MFUNC_INLINE 10
@@ -102,6 +113,9 @@
 #define ARM 6
 #define PALLETIZER 4
 #define DELTA 3
+#define ZONE_FORBIDDEN 2
+#define ZONE_SAFE 1
+#define ZONE_DISABLED 0
 #define JOG_GOTO 2
 #define JOG_TOOL 2
 #define POINT_JOINTS 0
@@ -156,8 +170,9 @@ typedef struct Robot_Parameter_Path_Type
 } Robot_Parameter_Path_Type;
 
 typedef struct Robot_Parameter_Workspace_Type
-{	float PositionMax[6];
-	float PositionMin[6];
+{	unsigned char Type;
+	float PositionMin[3];
+	float PositionMax[3];
 } Robot_Parameter_Workspace_Type;
 
 typedef struct Robot_Parameter_UnitsRatio_Type
@@ -211,7 +226,7 @@ typedef struct Robot_Parameter_Conveyor_Type
 typedef struct Robot_Parameter_Type
 {	struct Robot_Parameter_JointLimits_Type JointLimits[6];
 	struct Robot_Parameter_Path_Type PathLimits;
-	struct Robot_Parameter_Workspace_Type WorkspaceLimits;
+	struct Robot_Parameter_Workspace_Type Workspace[11];
 	struct Robot_Parameter_UnitsRatio_Type UnitsRatio[6];
 	struct Mech_Type Mechanics;
 	float Override;
@@ -266,6 +281,7 @@ typedef struct Robot_Type
 	struct Robot_Parameter_Type Parameters;
 	struct Robot_Monitor_Type Monitor;
 } Robot_Type;
+
 
 
 unsigned short RobotControl(unsigned long Robots, unsigned char RobotsNumber);

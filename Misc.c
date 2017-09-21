@@ -151,6 +151,9 @@ unsigned short CheckConst()
     check *=  (POINT_JOINTS == 0);
     check *=  (JOG_TOOL == 2);
     check *=  (JOG_GOTO == 2);
+    check *=  (ZONE_DISABLED == 0);
+    check *=  (ZONE_SAFE == 1);
+    check *=  (ZONE_FORBIDDEN == 2);
     check *=  (DELTA == 3);
     check *=  (PALLETIZER == 4);
     check *=  (ARM == 6);
@@ -165,6 +168,7 @@ unsigned short CheckConst()
     check *=  (MAX_MFUNC_INLINE == 10);
     check *=  (MAX_ROBOTS == 8);
     check *=  (MAX_PRG_SIZE == 10000);
+    check *=  (MAX_ZONE == 10);
     check *=  (BUFFER_LENGTH == 20);
     check *=  (RING_BUFFER_SIZE == 100);
     check *=  (TRF_POSE_BACK == 4);
@@ -218,6 +222,16 @@ unsigned short CheckConst()
     check *=  (ERR_PP_CIRCLEPOINTS == 1150);
     check *=  (ERR_PP_CIRCLE_LENGTH == 1151);
     check *=  (ERR_PP_CIRCLE_MIDDLEPOINT == 1152);
+    check *=  (ERR_WORKSPACE_ZONE1 == 1160);
+    check *=  (ERR_WORKSPACE_ZONE2 == 1161);
+    check *=  (ERR_WORKSPACE_ZONE3 == 1162);
+    check *=  (ERR_WORKSPACE_ZONE4 == 1163);
+    check *=  (ERR_WORKSPACE_ZONE5 == 1164);
+    check *=  (ERR_WORKSPACE_ZONE6 == 1165);
+    check *=  (ERR_WORKSPACE_ZONE7 == 1166);
+    check *=  (ERR_WORKSPACE_ZONE8 == 1167);
+    check *=  (ERR_WORKSPACE_ZONE9 == 1168);
+    check *=  (ERR_WORKSPACE_ZONE10 == 1169);
     check *=  (ERR_LIMIT_X == 1171);
     check *=  (ERR_LIMIT_Y == 1172);
     check *=  (ERR_LIMIT_Z == 1173);

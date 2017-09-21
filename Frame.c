@@ -24,13 +24,13 @@ unsigned short ComposeMatrix(float RM[3][3], float A, float B, float C)
 unsigned short DecomposeMatrix(float RM[3][3], float A_actual, float B_actual, float C_actual, float *A, float *B, float *C)
 {// decompose rotation matrix into RPY angles
 	
-	float A_temp[2],B_temp[2],C_temp[2],ABC_dist[2];
-	float cosd_B = sqrtf(1-RM[2][0]*RM[2][0]);
+	double A_temp[2],B_temp[2],C_temp[2],ABC_dist[2];
+	double cosd_B = sqrtf(1-RM[2][0]*RM[2][0]);
 
 	B_temp[0] = atan2d(-RM[2][0],cosd_B);
 	B_temp[1] = atan2d(-RM[2][0],-cosd_B);
 
-	if (fabs(cosd_B)>0.0001f)
+	if (fabs(cosd_B)>TRF_EPSILON)
 	{
 		C_temp[0] = atan2d(RM[1][0],RM[0][0]);
 		C_temp[1] = atan2d(-RM[1][0],-RM[0][0]);
@@ -39,9 +39,9 @@ unsigned short DecomposeMatrix(float RM[3][3], float A_actual, float B_actual, f
 		A_temp[1] = atan2d(-RM[2][1],-RM[2][2]); 
 	}
 	else
-	{	//singularity - choose A=0
-		A_temp[0] = A_temp[1] = 0;
-		C_temp[0] = C_temp[1] = -1.0f * sign(-RM[2][0]) * atan2d(RM[0][1]*sign(-RM[2][0]),RM[1][1]);
+	{	//singularity - choose A=A_actual
+		A_temp[0] = A_temp[1] = A_actual;
+		C_temp[0] = C_temp[1] = A_actual - sign(-RM[2][0]) * atan2d(RM[0][1]*sign(-RM[2][0]),RM[1][1]);
 	}
 	
 	//A, C modulo +-2PI to bring them closer to current values
@@ -51,22 +51,75 @@ unsigned short DecomposeMatrix(float RM[3][3], float A_actual, float B_actual, f
 	C_temp[0] = Modulo2PI(C_temp[0],C_actual);
 	C_temp[1] = Modulo2PI(C_temp[1],C_actual);
 	
-	// choose closest ABC_temp to ABC_actual 
-	ABC_dist[0] = fabs(A_temp[0]-A_actual) + fabs(B_temp[0]-B_actual) + fabs(C_temp[0]-C_actual);
-	ABC_dist[1] = fabs(A_temp[1]-A_actual) + fabs(B_temp[1]-B_actual) + fabs(C_temp[1]-C_actual);
-	if (ABC_dist[0] <= ABC_dist[1])
-	{
-		*A=A_temp[0];
-		*B=B_temp[0];
-		*C=C_temp[0];
-	}
-	else
-	{
-		*A=A_temp[1];
-		*B=B_temp[1];
-		*C=C_temp[1];	
-	}
+    //calculate distance of the two solutions from actual values
+    ABC_dist[0] = fabs(A_temp[0]-A_actual) + fabs(B_temp[0]-B_actual) + fabs(C_temp[0]-C_actual);
+    ABC_dist[1] = fabs(A_temp[1]-A_actual) + fabs(B_temp[1]-B_actual) + fabs(C_temp[1]-C_actual);
 
+    //keep same pose for wrist
+    if (B_actual < 0)
+    {//use solution with negative B
+        if((B_temp[0]<0)&&(B_temp[1]>=0))
+        { //use B_temp[0]
+            *A=A_temp[0];
+            *B=B_temp[0];
+            *C=C_temp[0];
+        }
+        else if((B_temp[1]<0)&&(B_temp[0]>=0))
+        { //use B_temp[1]
+            *A=A_temp[1];
+            *B=B_temp[1];
+            *C=C_temp[1];	
+        }
+        else
+        { //use closest solution to current values
+            if (ABC_dist[0] <= ABC_dist[1])
+            {
+                *A = A_temp[0];
+                *B = B_temp[0];
+                *C = C_temp[0];
+            }
+            else
+            {
+                *A = A_temp[1];
+                *B = B_temp[1];
+                *C = C_temp[1];
+            }	    
+        }
+    }
+    else
+    {//use solution with positive B
+        if((B_temp[0]>=0)&&(B_temp[1]<0))
+        { //use B_temp[0]
+            *A = A_temp[0];
+            *B = B_temp[0];
+            *C = C_temp[0];            
+        }
+        else if((B_temp[1]>=0)&&(B_temp[0]<0))
+        { //use B_temp[1]
+            *A = A_temp[1];
+            *B = B_temp[1];
+            *C = C_temp[1];
+        }
+        else
+        { //use closest solution to current values
+        if (ABC_dist[0] <= ABC_dist[1])
+            {
+                *A = A_temp[0];
+                *B = B_temp[0];
+                *C = C_temp[0];
+            }
+            else
+            {
+                *A = A_temp[1];
+                *B = B_temp[1];
+                *C = C_temp[1];
+            }	    
+        }
+    }
+
+    //adjust positions of C with +-2PI to bring it closer to desired value
+    *C = Modulo2PI(*C,C_actual);
+    
 	return 0;
 }
 
@@ -117,9 +170,10 @@ unsigned short SubFrame3D(float P1[6],float F1[6], float A_actual, float B_actua
 
 	DecomposeMatrix(End_RotMat,A_actual,B_actual,C_actual,&A,&B,&C);
 
-	P0[3] = A;
-	P0[4] = B;
-	P0[5] = C;
+    //keep orientation within 2PI from origin
+	P0[3] = Modulo2PI(A,0);
+	P0[4] = Modulo2PI(B,0);
+	P0[5] = Modulo2PI(C,0);
 
 	return 0;
 
@@ -137,16 +191,16 @@ unsigned short AddFrame3D(float P1[6],float F1[6], float A_actual, float B_actua
 	ComposeMatrix(Start_RotMat,P1[3],P1[4],P1[5]);
 
 	//transpose Frame rotation matrix
-	float Temp;
-	Temp = Frame_RotMat[0][1];
+	float tmpFrame;
+	tmpFrame = Frame_RotMat[0][1];
 	Frame_RotMat[0][1] = Frame_RotMat[1][0];
-	Frame_RotMat[1][0] = Temp;
-	Temp = Frame_RotMat[0][2];
+	Frame_RotMat[1][0] = tmpFrame;
+	tmpFrame = Frame_RotMat[0][2];
 	Frame_RotMat[0][2] = Frame_RotMat[2][0];
-	Frame_RotMat[2][0] = Temp;
-	Temp = Frame_RotMat[1][2];
+	Frame_RotMat[2][0] = tmpFrame;
+	tmpFrame = Frame_RotMat[1][2];
 	Frame_RotMat[1][2] = Frame_RotMat[2][1];
-	Frame_RotMat[2][1] = Temp;
+	Frame_RotMat[2][1] = tmpFrame;
 
 	P0[0] = Frame_RotMat[0][0] * P1[0] + Frame_RotMat[0][1] * P1[1] + Frame_RotMat[0][2] * P1[2] - (Frame_RotMat[0][0] * F1[0] + Frame_RotMat[0][1] * F1[1] + Frame_RotMat[0][2] * F1[2]); 
 	P0[1] = Frame_RotMat[1][0] * P1[0] + Frame_RotMat[1][1] * P1[1] + Frame_RotMat[1][2] * P1[2] - (Frame_RotMat[1][0] * F1[0] + Frame_RotMat[1][1] * F1[1] + Frame_RotMat[1][2] * F1[2]); 
@@ -156,9 +210,10 @@ unsigned short AddFrame3D(float P1[6],float F1[6], float A_actual, float B_actua
 
 	DecomposeMatrix(End_RotMat,A_actual,B_actual,C_actual,&A,&B,&C);
 
-	P0[3] = A;
-	P0[4] = B;
-	P0[5] = C;
+    //keep orientation within 2PI from origin
+    P0[3] = Modulo2PI(A,0);
+    P0[4] = Modulo2PI(B,0);
+    P0[5] = Modulo2PI(C,0);
 
 	return 0;
 
@@ -171,6 +226,8 @@ unsigned short SubFrame2D(float P1[6],float F1[6], float P0[6])
 	P0[1] = P1[0] * sind(F1[3]) + P1[1] * cosd(F1[3]) + F1[1];
 	P0[2] = P1[2] + F1[2];
 	P0[3] = P1[3] + F1[3];
+    //keep orientation within 2PI from origin
+    P0[3] = Modulo2PI(P0[3],0);
 	return 0;	
 }
 
@@ -181,19 +238,21 @@ unsigned short AddFrame2D(float P1[6],float F1[6], float P0[6])
 	P0[1] = - P1[0] * sind(F1[3]) + P1[1] * cosd(F1[3]) + F1[0] * sind(F1[3]) - F1[1] * cosd(F1[3]);
 	P0[2] = P1[2] - F1[2];
 	P0[3] = P1[3] - F1[3];
-	return 0;	
+    //keep orientation within 2PI from origin
+    P0[3] = Modulo2PI(P0[3],0);
+    return 0;	
 }
 
 unsigned short SubFrameTool2D(float Path[6], float Frame[6], float Tool[6], float Mount[6])
 { //calculate mounting point (in base frame) given path axes positions, current frame and tool 
 
-	float TempAxes[6];
+	float tmpAxes[6];
 	float InvertedTool[6];
 	float ZeroFrame[6] = {0,0,0,0,0,0};
 
-	SubFrame2D(Path,Frame,TempAxes);
+	SubFrame2D(Path,Frame,tmpAxes);
 	AddFrame2D(ZeroFrame,Tool,InvertedTool);
-	SubFrame2D(InvertedTool,TempAxes,Mount);
+	SubFrame2D(InvertedTool,tmpAxes,Mount);
 
 	return 0;
 }
@@ -201,10 +260,10 @@ unsigned short SubFrameTool2D(float Path[6], float Frame[6], float Tool[6], floa
 unsigned short AddFrameTool2D(float Mount[6], float Frame[6], float Tool[6], float Path[6])
 { //calculate path axes positions given mounting point (in base frame), current frame and tool 
 
-	float TempAxes[6];
+	float tmpAxes[6];
 
-	SubFrame2D(Tool,Mount,TempAxes);
-	AddFrame2D(TempAxes,Frame,Path);
+	SubFrame2D(Tool,Mount,tmpAxes);
+	AddFrame2D(tmpAxes,Frame,Path);
 
 	return 0;
 }
@@ -212,10 +271,10 @@ unsigned short AddFrameTool2D(float Mount[6], float Frame[6], float Tool[6], flo
 unsigned short AddFrameTool3D(float Mount[6], float Frame[6], float Tool[6], float A_actual, float B_actual, float C_actual, float Path[6])
 { //calculate path axes positions given mounting point (in base frame), current frame and tool 
 
-	float TempAxes[6];
+	float tmpAxes[6];
 
-	SubFrame3D(Tool,Mount,A_actual,B_actual,C_actual,TempAxes);
-	AddFrame3D(TempAxes,Frame,A_actual,B_actual,C_actual,Path);
+	SubFrame3D(Tool,Mount,A_actual,B_actual,C_actual,tmpAxes);
+	AddFrame3D(tmpAxes,Frame,A_actual,B_actual,C_actual,Path);
 
 	return 0;
 }
@@ -223,13 +282,13 @@ unsigned short AddFrameTool3D(float Mount[6], float Frame[6], float Tool[6], flo
 unsigned short SubFrameTool3D(float Path[6], float Frame[6], float Tool[6], float A_actual, float B_actual, float C_actual, float Mount[6])
 { //calculate mounting point (in base frame) given path axes positions, current frame and tool 
 
-	float TempAxes[6];
+	float tmpAxes[6];
 	float InvertedTool[6];
 	float ZeroFrame[6] = {0,0,0,0,0,0};
 
-	SubFrame3D(Path,Frame,A_actual,B_actual,C_actual,TempAxes);
+	SubFrame3D(Path,Frame,A_actual,B_actual,C_actual,tmpAxes);
 	AddFrame3D(ZeroFrame,Tool,A_actual,B_actual,C_actual,InvertedTool);
-	SubFrame3D(InvertedTool,TempAxes,A_actual,B_actual,C_actual,Mount);
+	SubFrame3D(InvertedTool,tmpAxes,A_actual,B_actual,C_actual,Mount);
 
 	return 0;
 }
@@ -264,22 +323,22 @@ unsigned short MatrixToQuat(float RM[3][3], Quat_Type* q)
 
 unsigned short QuatToMatrix(Quat_Type q, float RM[3][3])
 {
-	float w;
-	float n = q.w*q.w+q.x*q.x+q.y*q.y+q.z*q.z;
-	if (n == 0)
+	double w;
+	double n = q.w*q.w+q.x*q.x+q.y*q.y+q.z*q.z;
+	if (fabs(n) < TRF_EPSILON)
 		w = 0;
 	else 
 		w = 2/n;
 		
-	float wx = w * q.w * q.x;
-	float wy = w * q.w * q.y;
-	float wz = w * q.w * q.z;
-	float xx = w * q.x * q.x;
-	float xy = w * q.x * q.y;
-	float xz = w * q.x * q.z;
-	float yy = w * q.y * q.y;
-	float yz = w * q.y * q.z;
-	float zz = w * q.z * q.z;
+	double wx = w * q.w * q.x;
+	double wy = w * q.w * q.y;
+	double wz = w * q.w * q.z;
+	double xx = w * q.x * q.x;
+	double xy = w * q.x * q.y;
+	double xz = w * q.x * q.z;
+	double yy = w * q.y * q.y;
+	double yz = w * q.y * q.z;
+	double zz = w * q.z * q.z;
 		
 	RM[0][0] = 1 - (yy+zz);
 	RM[0][1] = (xy-wz);
@@ -290,18 +349,27 @@ unsigned short QuatToMatrix(Quat_Type q, float RM[3][3])
 	RM[2][0] = (xz-wy);
 	RM[2][1] = (yz+wx);
 	RM[2][2] = 1 - (yy+xx);
-	
+
+    //added for numerical stability - otherwise it is not robust for 90deg angles
+    int i, j;
+    for (i=0;i<3;i++)
+        for (j=0;j<3;j++)
+        {
+            if (RM[i][j]>1) RM[i][j] = 1;
+            if (RM[i][j]<-1) RM[i][j] = -1;
+        }
+
 	return 0;
 }
 
 float AngleBetweenQuat(Quat_Type q1, Quat_Type* q2)
 {//calculate angle between quaternions (in radians) -> reverse q2 if angle is obtuse
 
-	float q1_norm = sqrtf(q1.w*q1.w+q1.x*q1.x+q1.y*q1.y+q1.z*q1.z);
-	float q2_norm = sqrtf(q2->w*q2->w+q2->x*q2->x+q2->y*q2->y+q2->z*q2->z);
-	float q12 = q1.w*q2->w+q1.x*q2->x+q1.y*q2->y+q1.z*q2->z;
+	double q1_norm = sqrtf(q1.w*q1.w+q1.x*q1.x+q1.y*q1.y+q1.z*q1.z);
+	double q2_norm = sqrtf(q2->w*q2->w+q2->x*q2->x+q2->y*q2->y+q2->z*q2->z);
+	double q12 = q1.w*q2->w+q1.x*q2->x+q1.y*q2->y+q1.z*q2->z;
 	
-	float cos_alpha = q12/(q1_norm*q2_norm);
+	double cos_alpha = q12/(q1_norm*q2_norm);
 	
 	//clamp to avoid numerical errors
 	if (cos_alpha > 1)
@@ -321,9 +389,11 @@ float AngleBetweenQuat(Quat_Type q1, Quat_Type* q2)
 
 unsigned short Slerp(Quat_Type q1, Quat_Type q2, Quat_Type* q, float angle, float u)
 {
+    /* Slerp works also with u outside 0..1 -> it linearly extrapolates
 	if ((u>1)||(u<0))
 		return 255;
-	
+	*/
+    
 	if (angle < TRF_EPSILON)
 	{ //use linear interpolation for small angles
 		q->w = q1.w*(1-u) + q2.w*u; 
@@ -355,6 +425,7 @@ unsigned short EulerToQuat(float A, float B, float C, Quat_Type* q)
 unsigned short QuatToEuler(Quat_Type q, float A_actual, float B_actual, float C_actual, float *A, float *B, float *C)
 {
 	float RotMat[3][3];
+    NormalizeQuat(&q);
 	QuatToMatrix(q,RotMat);
 	DecomposeMatrix(RotMat,A_actual,B_actual,C_actual,A,B,C);
 	return 0;

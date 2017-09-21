@@ -9,17 +9,19 @@
 
 typedef struct RefPoint_Type
 {	
-	float Axes[6];
-	unsigned char Defined[6];
+    float Axes[6];
+    unsigned char Defined[6];
 } RefPoint_Type;
 
 typedef struct Edge_Type
 {
     float Radius;
     float Length;
-    Point_Type CtrlPoint[5];
+    Point_Type CtrlPoint[7]; //#5 and #6 are the same as #0 and #4 in joint world
     float tangAngleStart;
     float tangAngleEnd;
+    Quat_Type EdgeQuat; //used only for edges of PTP movements
+    float QuatAngle;
 } Edge_Type;
 
 typedef struct Spline_Type
@@ -61,10 +63,18 @@ typedef struct Path_Type
 
 typedef struct Label_Type
 {
-	char Name[MAX_BLOCK_SIZE+1];
-	unsigned short Found;
-	unsigned long Index;
+    char Name[MAX_BLOCK_SIZE+1];
+    unsigned short Found;
+    unsigned long Index;
+    int Counter;
 } Label_Type;
+
+typedef struct Goto_Type
+{	
+    unsigned long Line; //line where goto or sub were called
+    int Counter; //number of required iterations
+    unsigned long Index; //line where the target label was found
+} Goto_Type;
 
 typedef struct MotionPackage_Type
 {
@@ -100,7 +110,7 @@ typedef struct MotionPackage_Type
 } MotionPackage_Type;
 
 typedef struct Buffer_Type
-    {	struct MotionPackage_Type MotionPackage[BUFFER_LENGTH+1];
+{	struct MotionPackage_Type MotionPackage[BUFFER_LENGTH+1];
     unsigned char EXEC_Index; //buffer block being executed
     unsigned char EXEC_Index_Prev; //last executed block
     unsigned char PP_Index; //buffer block being planned
@@ -115,6 +125,8 @@ typedef struct Buffer_Type
     unsigned char IP_TrkIndex; //keeps note of what tracking index is currently active (IP-synch)
     float ModalFeedrate; //save feedrate as modal
     unsigned char ModalFeedrateType; //save also feedrate type as modal
+    Goto_Type GotoBuffer[MAX_SUBLEVEL];
+    Goto_Type SubBuffer[MAX_SUBLEVEL];
 } Buffer_Type;
 
 typedef struct Filter_Type
