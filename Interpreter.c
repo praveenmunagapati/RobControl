@@ -441,7 +441,7 @@ unsigned short Interpreter(char* Block, MotionPackage_Type* Package)
 			else
 				break;	//digits found -> use atoff to read them
 		}
-        if (strParameter[i]==0)
+        if (strMovement[i]==0)
         {//end of line - no time programmed after WAIT
             return ERR_IP_SYNTAX;
         }
