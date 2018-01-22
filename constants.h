@@ -15,6 +15,10 @@
 #define MOVE_TRK 11
 #define MOVE_SPLINE 12
 #define MOVE_TANG 13
+#define MOVE_SETDO 14
+#define MOVE_RESETDO 15
+#define MOVE_WAITDI 16
+#define MOVE_TOOL 17
 #define TRF_EPSILON 0.00001
 #define STATUS_ABORT 3
 #define PHASE_START 0
@@ -27,10 +31,9 @@
 #define BEZIER_QUARTIC 4
 #define BEZIER_XYZ 3
 #define BEZIER_SEGMENT 0.333
-#define FLOAT_MAX 8388607
-#define FLOAT_MIN -8388608
 #define WS_SUBPOINTS 10
 #define MAX_SUBLEVEL 10
+#define POINT_SAME 2
 
 #endif
 

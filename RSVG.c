@@ -32,9 +32,9 @@ void RSVG(struct RSVG_Type* inst)
 		inst->Status = STATUS_OK;
 	}
 		
-	float oldPosition,oldSpeed;
-	float v,a0,a1,j,t,d;
-	float astart_up, astart_down;
+	double oldPosition,oldSpeed;
+	double v,a0,a1,j,t,d;
+	double astart_up, astart_down;
 	
 	oldPosition = inst->Position;
 	oldSpeed = inst->Speed;
@@ -46,14 +46,14 @@ void RSVG(struct RSVG_Type* inst)
 	j = inst->j;
 	astart_up = inst->astart_up;
 	astart_down = inst->astart_down;
-	float cycletime = inst->Cycletime * inst->RedFactor;    //this is the magic of optimized motion (limited speed only)
+	double cycletime = inst->Cycletime * inst->RedFactor;    //this is the magic of optimized motion (limited speed only)
 	if (cycletime < 0)
 	{
 		cycletime = 0;
 		inst->Status = ERR_SPG_CYCLETIME;
 	}
 	
-	float override = inst->Override;
+	double override = inst->Override;
 	if (override < 0)
 	{
 		override = 0;
@@ -162,12 +162,12 @@ void RSVG(struct RSVG_Type* inst)
 		{ //start movement
 			inst->Done = 0;
 			inst->State = STATE_MOVING;		
-			inst->elapsedTime = 0.0f;
+			inst->elapsedTime = 0.0;
 
 			// numerical computation of dynamic values
 
 				
-			float tmp = MaxMovementDynamics(d,a0,j,v,inst->StartSpeed,inst->EndSpeed,inst->StartAcc,&v,&a0,&a1,&inst->delta);
+			double tmp = MaxMovementDynamics(d,a0,j,v,inst->StartSpeed,inst->EndSpeed,inst->StartAcc,&v,&a0,&a1,&inst->delta);
 			if (tmp != STATUS_OK)
 			{
 				inst->Status = ERR_SPG_DYNCALC;
@@ -189,11 +189,11 @@ void RSVG(struct RSVG_Type* inst)
 				inst->StartAcc = fabs(inst->StartAcc);
 				
 				inst->dt[0] = (a0-inst->StartAcc)/j;
-				inst->dt[1] = inst->dt[0] + 1/a0 * (fabs(v-inst->StartSpeed) -0.5f*a0*a0/j -inst->StartAcc*(a0-inst->StartAcc)/j -0.5f*(a0-inst->StartAcc)*(a0-inst->StartAcc)/j);
+				inst->dt[1] = inst->dt[0] + 1/a0 * (fabs(v-inst->StartSpeed) -0.5*a0*a0/j -inst->StartAcc*(a0-inst->StartAcc)/j -0.5*(a0-inst->StartAcc)*(a0-inst->StartAcc)/j);
 				inst->dt[2] = inst->dt[1] + a0/j;
 
 				//speed at end of dt[0]
-				inst->v1 = inst->StartSpeed + (inst->StartAcc * inst->dt[0] + 0.5f *j *inst->dt[0]*inst->dt[0])*sign(v-inst->StartSpeed);
+				inst->v1 = inst->StartSpeed + (inst->StartAcc * inst->dt[0] + 0.5 *j *inst->dt[0]*inst->dt[0])*sign(v-inst->StartSpeed);
 				inst->v2 = inst->v1 + a0*(inst->dt[1]-inst->dt[0])*sign(v-inst->StartSpeed);					
 			}
 			if (v!=0)
@@ -254,7 +254,7 @@ void RSVG(struct RSVG_Type* inst)
 			if(inst->Phase < 1)
 			{// movement is accelerating -> need to bring acceleration to zero first
 				inst->dt[0] = inst->beginAcc/j; 
-				v = inst->beginSpeed + (inst->beginAcc * inst->dt[0] - 0.5f * j *inst->dt[0]*inst->dt[0]); //speed reached at the end of the first section
+				v = inst->beginSpeed + (inst->beginAcc * inst->dt[0] - 0.5 * j *inst->dt[0]*inst->dt[0]); //speed reached at the end of the first section
 				
 				astart_up = inst->beginAcc;
 				astart_down = 0;
@@ -266,14 +266,14 @@ void RSVG(struct RSVG_Type* inst)
 				inst->dt[2] = (v/a0)-(a0/j);
 				if (inst->dt[2] <= 0)
 				{
-					a0 = sqrtf(v*j);
+					a0 = sqrt(v*j);
 				}
 				if ((a0!=0)&&(v!=0))
 				{
 					inst->dt[1] = inst->dt[0] + a0/j;
 					inst->dt[2] = inst->dt[1] + v/a0-a0/j;
 					inst->dt[3] = inst->dt[2] + a0/j;
-					inst->v1 = v - 0.5f*a0*a0/j;
+					inst->v1 = v - 0.5*a0*a0/j;
 					inst->v2 = inst->v1 - v + a0*a0/j;
 				}
 				else
@@ -298,14 +298,14 @@ void RSVG(struct RSVG_Type* inst)
 				inst->dt[2] = (v/a0)-(a0/j);
 				if (inst->dt[2] <= 0)
 				{
-					a0 = sqrtf(v*j);
+					a0 = sqrt(v*j);
 				}
 				if ((a0!=0)&&(v!=0))
 				{
 					inst->dt[1] = inst->dt[0] + a0/j;
 					inst->dt[2] = inst->dt[1] + v/a0-a0/j;
 					inst->dt[3] = inst->dt[2] + a0/j;
-					inst->v1 = v - 0.5f*a0*a0/j;
+					inst->v1 = v - 0.5*a0*a0/j;
 					inst->v2 = inst->v1 - v + a0*a0/j;
 				}
 				else
@@ -327,15 +327,15 @@ void RSVG(struct RSVG_Type* inst)
 				astart_up = 0;
 				astart_down = inst->beginAcc;
 				
-				a0 = sqrtf(j*v+0.5f*inst->beginAcc*inst->beginAcc);
+				a0 = sqrt(j*v+0.5*inst->beginAcc*inst->beginAcc);
 				if (a0<inst->beginAcc) a0=inst->beginAcc;
 				if (a0 > inst->DynamicValues.AccelerationPos) a0 = inst->DynamicValues.AccelerationPos;
 				if (a0!=0)
 				{ 
 					inst->dt[1] = (a0-inst->beginAcc)/j;
-					inst->dt[2] = inst->dt[1] + 1/a0 * (v -0.5f*a0*a0/j -inst->beginAcc*(a0-inst->beginAcc)/j -0.5f*(a0-inst->beginAcc)*(a0-inst->beginAcc)/j);
+					inst->dt[2] = inst->dt[1] + 1/a0 * (v -0.5*a0*a0/j -inst->beginAcc*(a0-inst->beginAcc)/j -0.5*(a0-inst->beginAcc)*(a0-inst->beginAcc)/j);
 					inst->dt[3] = inst->dt[2] + a0/j;
-					inst->v1 = v - (astart_down*inst->dt[1] + 0.5f *j * inst->dt[1]*inst->dt[1]);
+					inst->v1 = v - (astart_down*inst->dt[1] + 0.5 *j * inst->dt[1]*inst->dt[1]);
 					inst->v2 = inst->v1 - a0*(inst->dt[2] - inst->dt[1]);
 				}
 				else
@@ -406,19 +406,19 @@ void RSVG(struct RSVG_Type* inst)
 			{
 				inst->Phase = 2;
 				t = inst->dt[0];
-				inst->ds = (inst->StartSpeed * t + (j * t*t*t / 6.0f + 0.5f * inst->StartAcc * t*t)* sign(v-inst->StartSpeed));
+				inst->ds = (inst->StartSpeed * t + (j * t*t*t / 6.0 + 0.5 * inst->StartAcc * t*t)* sign(v-inst->StartSpeed));
 				t = inst->dt[1]-inst->dt[0];
-				inst->ds += (inst->v1 * t + (0.5f * a0 * t*t) * sign(v-inst->StartSpeed));
+				inst->ds += (inst->v1 * t + (0.5 * a0 * t*t) * sign(v-inst->StartSpeed));
 				t = inst->dt[2]-inst->dt[1];
-				inst->ds += (inst->v2*t + (0.5f * a0 * t*t - j * t*t*t / 6.0f) * sign(v-inst->StartSpeed));
+				inst->ds += (inst->v2*t + (0.5 * a0 * t*t - j * t*t*t / 6.0) * sign(v-inst->StartSpeed));
 				t = inst->dt[3]-inst->dt[2];
 				inst->ds += (v*t);
 				t = inst->dt[4]-inst->dt[3];
-				inst->ds += (v*t - (j * t*t*t /6.0f));
+				inst->ds += (v*t - (j * t*t*t /6.0));
 				t = inst->dt[5]-inst->dt[4];
-				inst->ds += (v*t - (0.5f * a1 *t*t + 0.5f * a1*a1/j * t));
+				inst->ds += (v*t - (0.5 * a1 *t*t + 0.5 * a1*a1/j * t));
 				t = inst->elapsedTime - inst->dt[5];
-				inst->ds += (v*t - (-j *t*t*t /6.0f + 0.5f * a1* t*t + t*((v-inst->EndSpeed)-0.5f*a1*a1/j)));
+				inst->ds += (v*t - (-j *t*t*t /6.0 + 0.5 * a1* t*t + t*((v-inst->EndSpeed)-0.5*a1*a1/j)));
 				inst->Acceleration = -(a1 - j*t);
 
 
@@ -427,17 +427,17 @@ void RSVG(struct RSVG_Type* inst)
 			{
 				inst->Phase = 2;
 				t = inst->dt[0];
-				inst->ds = (inst->StartSpeed * t + (j * t*t*t / 6.0f + 0.5f * inst->StartAcc * t*t)* sign(v-inst->StartSpeed));
+				inst->ds = (inst->StartSpeed * t + (j * t*t*t / 6.0 + 0.5 * inst->StartAcc * t*t)* sign(v-inst->StartSpeed));
 				t = inst->dt[1]-inst->dt[0];
-				inst->ds += (inst->v1 * t + (0.5f * a0 * t*t) * sign(v-inst->StartSpeed));
+				inst->ds += (inst->v1 * t + (0.5 * a0 * t*t) * sign(v-inst->StartSpeed));
 				t = inst->dt[2]-inst->dt[1];
-				inst->ds += (inst->v2*t + (0.5f * a0 * t*t - j * t*t*t / 6.0f) * sign(v-inst->StartSpeed));
+				inst->ds += (inst->v2*t + (0.5 * a0 * t*t - j * t*t*t / 6.0) * sign(v-inst->StartSpeed));
 				t = inst->dt[3]-inst->dt[2];
 				inst->ds += (v*t);
 				t = inst->dt[4]-inst->dt[3];
-				inst->ds += (v*t - (j * t*t*t /6.0f));
+				inst->ds += (v*t - (j * t*t*t /6.0));
 				t = inst->elapsedTime - inst->dt[4];
-				inst->ds += (v*t - (0.5f * a1 *t*t + 0.5f * a1*a1/j * t));
+				inst->ds += (v*t - (0.5 * a1 *t*t + 0.5 * a1*a1/j * t));
 				inst->Acceleration = -a1;
 
 			}
@@ -445,15 +445,15 @@ void RSVG(struct RSVG_Type* inst)
 			{
 				inst->Phase = 2;
 				t = inst->dt[0];
-				inst->ds = (inst->StartSpeed * t + (j * t*t*t / 6.0f + 0.5f * inst->StartAcc * t*t)* sign(v-inst->StartSpeed));
+				inst->ds = (inst->StartSpeed * t + (j * t*t*t / 6.0 + 0.5 * inst->StartAcc * t*t)* sign(v-inst->StartSpeed));
 				t = inst->dt[1]-inst->dt[0];
-				inst->ds += (inst->v1 * t + (0.5f * a0 * t*t) * sign(v-inst->StartSpeed));
+				inst->ds += (inst->v1 * t + (0.5 * a0 * t*t) * sign(v-inst->StartSpeed));
 				t = inst->dt[2]-inst->dt[1];
-				inst->ds += (inst->v2*t + (0.5f * a0 * t*t - j * t*t*t / 6.0f) * sign(v-inst->StartSpeed));
+				inst->ds += (inst->v2*t + (0.5 * a0 * t*t - j * t*t*t / 6.0) * sign(v-inst->StartSpeed));
 				t = inst->dt[3]-inst->dt[2];
 				inst->ds += (v*t);
 				t = inst->elapsedTime - inst->dt[3];
-				inst->ds += (v*t - (j * t*t*t /6.0f));
+				inst->ds += (v*t - (j * t*t*t /6.0));
 				inst->Acceleration = -j * t;
 
 			}
@@ -461,11 +461,11 @@ void RSVG(struct RSVG_Type* inst)
 			{
 				inst->Phase = 1;
 				t = inst->dt[0];
-				inst->ds = (inst->StartSpeed * t + (j * t*t*t / 6.0f + 0.5f * inst->StartAcc * t*t)* sign(v-inst->StartSpeed));
+				inst->ds = (inst->StartSpeed * t + (j * t*t*t / 6.0 + 0.5 * inst->StartAcc * t*t)* sign(v-inst->StartSpeed));
 				t = inst->dt[1]-inst->dt[0];
-				inst->ds += (inst->v1 * t + (0.5f * a0 * t*t) * sign(v-inst->StartSpeed));
+				inst->ds += (inst->v1 * t + (0.5 * a0 * t*t) * sign(v-inst->StartSpeed));
 				t = inst->dt[2]-inst->dt[1];
-				inst->ds += (inst->v2*t + (0.5f * a0 * t*t - j * t*t*t / 6.0f) * sign(v-inst->StartSpeed));
+				inst->ds += (inst->v2*t + (0.5 * a0 * t*t - j * t*t*t / 6.0) * sign(v-inst->StartSpeed));
 				t = inst->elapsedTime - inst->dt[2];
 				inst->ds += (v*t);
 				inst->Acceleration = 0;
@@ -475,11 +475,11 @@ void RSVG(struct RSVG_Type* inst)
 			{
 				inst->Phase = 0;
 				t = inst->dt[0];
-				inst->ds = (inst->StartSpeed * t + (j * t*t*t / 6.0f + 0.5f * inst->StartAcc * t*t)* sign(v-inst->StartSpeed));
+				inst->ds = (inst->StartSpeed * t + (j * t*t*t / 6.0 + 0.5 * inst->StartAcc * t*t)* sign(v-inst->StartSpeed));
 				t = inst->dt[1]-inst->dt[0];
-				inst->ds += (inst->v1 * t + (0.5f * a0 * t*t) * sign(v-inst->StartSpeed));
+				inst->ds += (inst->v1 * t + (0.5 * a0 * t*t) * sign(v-inst->StartSpeed));
 				t = inst->elapsedTime - inst->dt[1];
-				inst->ds += (inst->v2*t + (0.5f * a0 * t*t - j * t*t*t / 6.0f) * sign(v-inst->StartSpeed));
+				inst->ds += (inst->v2*t + (0.5 * a0 * t*t - j * t*t*t / 6.0) * sign(v-inst->StartSpeed));
 				inst->Acceleration = (a0 - j * t) * sign(v-inst->StartSpeed);
 
 			}
@@ -487,9 +487,9 @@ void RSVG(struct RSVG_Type* inst)
 			{
 				inst->Phase = 0;
 				t = inst->dt[0];
-				inst->ds = (inst->StartSpeed * t + (j * t*t*t / 6.0f + 0.5f * inst->StartAcc * t*t)* sign(v-inst->StartSpeed));
+				inst->ds = (inst->StartSpeed * t + (j * t*t*t / 6.0 + 0.5 * inst->StartAcc * t*t)* sign(v-inst->StartSpeed));
 				t = inst->elapsedTime - inst->dt[0];
-				inst->ds += (inst->v1 * t + (0.5f * a0 * t*t) * sign(v-inst->StartSpeed));
+				inst->ds += (inst->v1 * t + (0.5 * a0 * t*t) * sign(v-inst->StartSpeed));
 				inst->Acceleration = a0 * sign(v-inst->StartSpeed);
 
 			}
@@ -497,7 +497,7 @@ void RSVG(struct RSVG_Type* inst)
 			{
 				inst->Phase = 0;
 				t = inst->elapsedTime;
-				inst->ds = (inst->StartSpeed * t + (j * t*t*t / 6.0f + 0.5f * inst->StartAcc * t*t)* sign(v-inst->StartSpeed));
+				inst->ds = (inst->StartSpeed * t + (j * t*t*t / 6.0 + 0.5 * inst->StartAcc * t*t)* sign(v-inst->StartSpeed));
 				inst->Acceleration = (inst->StartAcc + j * t) * sign(v-inst->StartSpeed);
 
             }
@@ -537,13 +537,13 @@ void RSVG(struct RSVG_Type* inst)
 			
 				//used to increase precision in case dt[0] is shorter than one cycle time
 				t = inst->dt[0];
-				inst->ds = (fabs(inst->beginSpeed) * t + 0.5f* astart_up * t*t - j * t*t*t / 6.0f);
+				inst->ds = (fabs(inst->beginSpeed) * t + 0.5* astart_up * t*t - j * t*t*t / 6.0);
 				t = inst->dt[1]-inst->dt[0];
-				inst->ds += (v*t - (j * t*t*t /6.0f)- 0.5f * astart_down * t*t);
+				inst->ds += (v*t - (j * t*t*t /6.0)- 0.5 * astart_down * t*t);
 				t = inst->dt[2]-inst->dt[1];
-				inst->ds += (inst->v1 *t - (0.5f * a0 *t*t));
+				inst->ds += (inst->v1 *t - (0.5 * a0 *t*t));
 				t = inst->dt[3] - inst->dt[2];
-				inst->ds += (inst->v2 * t - (-j *t*t*t /6.0f + 0.5f * a0* t*t));
+				inst->ds += (inst->v2 * t - (-j *t*t*t /6.0 + 0.5 * a0* t*t));
 				inst->Acceleration = 0;
 				
 				inst->Status = STATUS_OK;
@@ -554,13 +554,13 @@ void RSVG(struct RSVG_Type* inst)
 			{
 				inst->Phase = 2;
 				t = inst->dt[0];
-				inst->ds = (fabs(inst->beginSpeed) * t + 0.5f* astart_up * t*t - j * t*t*t / 6.0f);
+				inst->ds = (fabs(inst->beginSpeed) * t + 0.5* astart_up * t*t - j * t*t*t / 6.0);
 				t = inst->dt[1]-inst->dt[0];
-				inst->ds += (v*t - (j * t*t*t /6.0f)- 0.5f * astart_down * t*t);
+				inst->ds += (v*t - (j * t*t*t /6.0)- 0.5 * astart_down * t*t);
 				t = inst->dt[2]-inst->dt[1];
-				inst->ds += (inst->v1 *t - (0.5f * a0 *t*t));
+				inst->ds += (inst->v1 *t - (0.5 * a0 *t*t));
 				t = inst->elapsedTime - inst->dt[2];
-				inst->ds += (inst->v2 * t - (-j *t*t*t /6.0f + 0.5f * a0* t*t));
+				inst->ds += (inst->v2 * t - (-j *t*t*t /6.0 + 0.5 * a0* t*t));
 				inst->Acceleration = -(a0-j*t);
 
 			}
@@ -568,11 +568,11 @@ void RSVG(struct RSVG_Type* inst)
 			{
 				inst->Phase = 2;
 				t = inst->dt[0];
-				inst->ds = (fabs(inst->beginSpeed) * t + 0.5f* astart_up * t*t - j * t*t*t / 6.0f);
+				inst->ds = (fabs(inst->beginSpeed) * t + 0.5* astart_up * t*t - j * t*t*t / 6.0);
 				t = inst->dt[1]-inst->dt[0];
-				inst->ds += (v*t - (j * t*t*t /6.0f)- 0.5f * astart_down * t*t);
+				inst->ds += (v*t - (j * t*t*t /6.0)- 0.5 * astart_down * t*t);
 				t = inst->elapsedTime - inst->dt[1];
-				inst->ds += (inst->v1 *t - (0.5f * a0 *t*t));
+				inst->ds += (inst->v1 *t - (0.5 * a0 *t*t));
 				inst->Acceleration = -a0;
 				
 			}
@@ -580,9 +580,9 @@ void RSVG(struct RSVG_Type* inst)
 			{
 				inst->Phase = 2;
 				t = inst->dt[0];
-				inst->ds = (fabs(inst->beginSpeed) * t + 0.5f* astart_up * t*t - j * t*t*t / 6.0f);
+				inst->ds = (fabs(inst->beginSpeed) * t + 0.5* astart_up * t*t - j * t*t*t / 6.0);
 				t = inst->elapsedTime - inst->dt[0];
-				inst->ds += (v*t - (j * t*t*t /6.0f)- 0.5f * astart_down * t*t);
+				inst->ds += (v*t - (j * t*t*t /6.0)- 0.5 * astart_down * t*t);
 				inst->Acceleration = -j * t - astart_down;
 
 			}
@@ -590,7 +590,7 @@ void RSVG(struct RSVG_Type* inst)
 			{
 				inst->Phase = 0;
 				t = inst->elapsedTime;
-				inst->ds = (fabs(inst->beginSpeed) * t + 0.5f* astart_up * t*t - j * t*t*t / 6.0f);
+				inst->ds = (fabs(inst->beginSpeed) * t + 0.5* astart_up * t*t - j * t*t*t / 6.0);
 				inst->Acceleration = astart_up - j * t;
 
 			}
@@ -624,7 +624,7 @@ void RSVG(struct RSVG_Type* inst)
 			if (inst->elapsedTime > inst->dt[0])
 			{//movement completed
 				t = inst->dt[0];
-				inst->ds = (0.5f*a0*t*t+v*t);	//used to increase precision in case dt[0] is shorter than one cycle time
+				inst->ds = (0.5*a0*t*t+v*t);	//used to increase precision in case dt[0] is shorter than one cycle time
 				inst->Status = STATUS_OK;
 				inst->Done = 1;
 				inst->Acceleration = 0;
@@ -632,7 +632,7 @@ void RSVG(struct RSVG_Type* inst)
 			else
 			{
 				t = inst->elapsedTime;
-				inst->ds = (0.5f*a0*t*t+v*t);
+				inst->ds = (0.5*a0*t*t+v*t);
 				inst->Acceleration = a0;
 			}
 			inst->Position = inst->beginPosition + inst->ds;

@@ -7,7 +7,7 @@
 
 /* Declaration of generic transformations function interface */
 
-unsigned short Transformations(struct Mech_Type* Mechanics, unsigned char Mode, float JointAxes[6], float PathAxes[6], float Axes[6]);
+unsigned short Transformations(struct Mech_Type* Mechanics, unsigned char Mode, double JointAxes[6], double PathAxes[6], double Axes[6]);
 
 #endif
 

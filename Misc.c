@@ -38,7 +38,7 @@ unsigned short LineFromString(char* s, char* line, unsigned long linenumber)
 	return STATUS_OK;
 }
 
-float RoundToEpsilon(float Value)
+double RoundToEpsilon(double Value)
 {
 	int nValue = round(Value);
 	if (fabs(Value - nValue) < TRF_EPSILON)
@@ -49,7 +49,7 @@ float RoundToEpsilon(float Value)
 
 void MovingAverageFilter(struct Filter_Type* inst)
 {
-	float Sum = 0;
+	double Sum = 0;
 	int i;
 
 	if (!inst->Enable)
@@ -80,14 +80,14 @@ void MovingAverageFilter(struct Filter_Type* inst)
 		Sum += inst->Buffer[i];	
 	}
 	
-	inst->OutputValue = Sum / (float) inst->Window;
+	inst->OutputValue = Sum / (double) inst->Window;
 	
 }
 
 void GaussianFilter(struct Filter_Type* inst)
 {
-	float Sum = 0;
-	float GSum = 0;
+	double Sum = 0;
+	double GSum = 0;
 	int i,idx;
 	
 	if (!inst->Enable)
@@ -115,8 +115,8 @@ void GaussianFilter(struct Filter_Type* inst)
 
 	for(i=0;i<inst->Window;i+=((inst->Window+99)/100))	//decrease resolution to speed up calculation
 	{
-		float tmpVal = (i-inst->Window/2.0f)/(0.4f*inst->Window/2.0f);
-		float Gauss = exp(-0.5f * tmpVal*tmpVal);		
+		double tmpVal = (i-inst->Window/2.0)/(0.4*inst->Window/2.0);
+		double Gauss = exp(-0.5 * tmpVal*tmpVal);		
 		GSum += Gauss;
 		
 		//start counting signal from first element inserted in time
@@ -156,8 +156,10 @@ unsigned short CheckConst()
     check *=  (ZONE_FORBIDDEN == 2);
     check *=  (DELTA == 3);
     check *=  (PALLETIZER == 4);
+    check *=  (RTCP == 5);
     check *=  (ARM == 6);
     check *=  (USER == 10);
+    check *=  (MAX_IO == 100);
     check *=  (MAX_MFUNC == 100);
     check *=  (MAX_POINT == 200);
     check *=  (MAX_BLOCK_SIZE == 100);
@@ -196,6 +198,8 @@ unsigned short CheckConst()
     check *=  (ERR_TRF_POSE == 1024);
     check *=  (ERR_TRF_POINTER == 1025);
     check *=  (ERR_TRF_AXESNUM == 1026);
+    check *=  (ERR_TRF_ROT == 1027);
+    check *=  (ERR_CALIBRATION == 1030);
     check *=  (ERR_NOT_SUPPORTED == 1050);
     check *=  (ERR_FILE_NOT_FOUND == 1051);
     check *=  (ERR_FILE_EMPTY == 1052);
@@ -219,6 +223,7 @@ unsigned short CheckConst()
     check *=  (ERR_IP_JUMP == 1115);
     check *=  (ERR_IP_SUBLEVEL == 1116);
     check *=  (ERR_IP_TANG == 1117);
+    check *=  (ERR_IP_IO_INDEX == 1118);
     check *=  (ERR_PP_CIRCLEPOINTS == 1150);
     check *=  (ERR_PP_CIRCLE_LENGTH == 1151);
     check *=  (ERR_PP_CIRCLE_MIDDLEPOINT == 1152);

@@ -3,6 +3,7 @@
 
 /* Declaration of global constants, datatypes and functions for the RobControl library */ 
 
+#define MAX_PRG_SIZE 10000
 #define ERR_OPTMOT 1260
 #define ERR_TRK2 1251
 #define ERR_TRK1 1250
@@ -46,6 +47,7 @@
 #define ERR_PP_CIRCLE_MIDDLEPOINT 1152
 #define ERR_PP_CIRCLE_LENGTH 1151
 #define ERR_PP_CIRCLEPOINTS 1150
+#define ERR_IP_IO_INDEX 1118
 #define ERR_IP_TANG 1117
 #define ERR_IP_SUBLEVEL 1116
 #define ERR_IP_JUMP 1115
@@ -69,6 +71,8 @@
 #define ERR_FILE_EMPTY 1052
 #define ERR_FILE_NOT_FOUND 1051
 #define ERR_NOT_SUPPORTED 1050
+#define ERR_CALIBRATION 1030
+#define ERR_TRF_ROT 1027
 #define ERR_TRF_AXESNUM 1026
 #define ERR_TRF_POINTER 1025
 #define ERR_TRF_POSE 1024
@@ -85,47 +89,48 @@
 #define ERR_MAX_ROBOTS 1010
 #define ERR_CHECKSUM 1006
 #define ERR_CYCLETIME 1005
-#define ERR_DISABLED 99
-#define TRF_DIRECT 0
-#define TRF_INVERSE 1
-#define TRF_POSE_RIGHT 0
-#define TRF_POSE_LEFT 1
-#define TRF_POSE_CONVEX 0
-#define TRF_POSE_CONCAVE 2
-#define TRF_POSE_FRONT 0
-#define TRF_POSE_BACK 4
-#define TRF_POSE_POSITIVE 0
-#define TRF_POSE_NEGATIVE 8
-#define RING_BUFFER_SIZE 100
-#define BUFFER_LENGTH 20
-#define MAX_ZONE 10
-#define MAX_PRG_SIZE 10000
-#define MAX_ROBOTS 8
-#define MAX_MFUNC_INLINE 10
-#define MAX_ERR 20
-#define MAX_TOOL 20
-#define MAX_FRAME 20
-#define MAX_LOOP_COUNT 100
-#define MAX_BLOCK_SIZE 100
 #define MAX_POINT 200
+#define MAX_IO 100
 #define MAX_MFUNC 100
+#define MAX_BLOCK_SIZE 100
+#define MAX_LOOP_COUNT 100
+#define RING_BUFFER_SIZE 100
+#define ERR_DISABLED 99
+#define MAX_FRAME 20
+#define MAX_TOOL 20
+#define MAX_ERR 20
+#define BUFFER_LENGTH 20
 #define USER 10
+#define MAX_ZONE 10
+#define MAX_MFUNC_INLINE 10
+#define TRF_POSE_NEGATIVE 8
+#define MAX_ROBOTS 8
 #define ARM 6
+#define RTCP 5
 #define PALLETIZER 4
+#define TRF_POSE_BACK 4
 #define DELTA 3
+#define TRF_POSE_CONCAVE 2
 #define ZONE_FORBIDDEN 2
-#define ZONE_SAFE 1
-#define ZONE_DISABLED 0
 #define JOG_GOTO 2
 #define JOG_TOOL 2
-#define POINT_JOINTS 0
 #define JOG_BASE 1
-#define JOG_NEGATIVE 1
-#define SCARA 1
+#define TRF_POSE_LEFT 1
+#define TRF_INVERSE 1
 #define POINT_PATH 1
-#define JOG_POSITIVE 0
-#define JOG_JOINTS 0
+#define ZONE_SAFE 1
+#define SCARA 1
+#define JOG_NEGATIVE 1
 #define CNC 0
+#define JOG_JOINTS 0
+#define JOG_POSITIVE 0
+#define ZONE_DISABLED 0
+#define POINT_JOINTS 0
+#define TRF_POSE_CONVEX 0
+#define TRF_POSE_POSITIVE 0
+#define TRF_POSE_FRONT 0
+#define TRF_DIRECT 0
+#define TRF_POSE_RIGHT 0
 #define STATUS_OK 0
 
 
@@ -148,20 +153,20 @@ typedef struct Robot_Command_Type
 } Robot_Command_Type;
 
 typedef struct Robot_Parameter_JointLimits_Type
-{	float PositionPos;
-	float PositionNeg;
-	float VelocityPos;
-	float VelocityNeg;
-	float AccelerationPos;
-	float AccelerationNeg;
-	float JerkPos;
-	float JerkNeg;
+{	double PositionPos;
+	double PositionNeg;
+	double VelocityPos;
+	double VelocityNeg;
+	double AccelerationPos;
+	double AccelerationNeg;
+	double JerkPos;
+	double JerkNeg;
 } Robot_Parameter_JointLimits_Type;
 
 typedef struct Robot_Parameter_PathLimits_Type
-{	float Velocity;
-	float Acceleration;
-	float Jerk;
+{	double Velocity;
+	double Acceleration;
+	double Jerk;
 } Robot_Parameter_PathLimits_Type;
 
 typedef struct Robot_Parameter_Path_Type
@@ -171,8 +176,8 @@ typedef struct Robot_Parameter_Path_Type
 
 typedef struct Robot_Parameter_Workspace_Type
 {	unsigned char Type;
-	float PositionMin[3];
-	float PositionMax[3];
+	double PositionMin[3];
+	double PositionMax[3];
 } Robot_Parameter_Workspace_Type;
 
 typedef struct Robot_Parameter_UnitsRatio_Type
@@ -183,9 +188,9 @@ typedef struct Robot_Parameter_UnitsRatio_Type
 } Robot_Parameter_UnitsRatio_Type;
 
 typedef struct Coord_Type
-{	float X;
-	float Y;
-	float Z;
+{	double X;
+	double Y;
+	double Z;
 } Coord_Type;
 
 typedef struct Link_Type
@@ -202,25 +207,36 @@ typedef struct UserTrf_Type
 typedef struct Mech_Type
 {	unsigned char Type;
 	struct Link_Type Links[6];
-	float Coupling[6];
+	double Coupling[6];
 	struct UserTrf_Type UserTrf;
 } Mech_Type;
 
 typedef struct Point_Type
-{	float Axes[6];
+{	double Axes[6];
 	unsigned char Mode;
 } Point_Type;
+
+typedef struct Calibration_Tool_Type
+{	struct Point_Type Points[5];
+	unsigned short Start;
+	unsigned short Status;
+	struct Coord_Type Result;
+} Calibration_Tool_Type;
+
+typedef struct Robot_Parameter_Calibration_Type
+{	struct Calibration_Tool_Type Tool;
+} Robot_Parameter_Calibration_Type;
 
 typedef struct Robot_Jog_Type
 {	unsigned char Mode;
 	unsigned char AxisIndex;
 	unsigned char Direction;
-	float GotoPos;
+	double GotoPos;
 } Robot_Jog_Type;
 
 typedef struct Robot_Parameter_Conveyor_Type
-{	float Angle;
-	float Position;
+{	double Angle;
+	double Position;
 } Robot_Parameter_Conveyor_Type;
 
 typedef struct Robot_Parameter_Type
@@ -229,22 +245,25 @@ typedef struct Robot_Parameter_Type
 	struct Robot_Parameter_Workspace_Type Workspace[11];
 	struct Robot_Parameter_UnitsRatio_Type UnitsRatio[6];
 	struct Mech_Type Mechanics;
-	float Override;
+	struct Robot_Parameter_Calibration_Type Calibration;
+	double Override;
 	unsigned char* Program;
 	char Blocks[101][101];
 	signed long ActFromDrives[6];
 	unsigned long StartLine;
+	unsigned long StopLine;
 	struct Point_Type Points[201];
 	struct Point_Type Tool[21];
 	struct Point_Type Frame[21];
 	struct Robot_Jog_Type Jog;
 	struct Robot_Parameter_Conveyor_Type Conveyor[2];
-	float PathCorrection[6];
+	double PathCorrection[6];
 	unsigned short M_synch[101];
-	float CycleTime;
-	float FilterTime;
-	float MaxTransitionAngle;
+	double CycleTime;
+	double FilterTime;
+	double MaxTransitionAngle;
 	unsigned short SingleStep;
+	unsigned long License;
 } Robot_Parameter_Type;
 
 typedef struct Robot_Monitor_Type
@@ -252,25 +271,27 @@ typedef struct Robot_Monitor_Type
 	unsigned char AxesNum;
 	unsigned short Moving;
 	unsigned short Halted;
-	float PathSpeed;
-	float PathPosition[6];
-	float JointPosition[6];
-	float JointSpeed[6];
+	double PathSpeed;
+	double PathPosition[6];
+	double JointPosition[6];
+	double JointSpeed[6];
 	signed long SetToDrive[6];
-	float MountBasePosition[6];
-	float ToolBasePosition[6];
+	double MountBasePosition[6];
+	double ToolBasePosition[6];
 	unsigned long LineNumber;
 	char CurrentBlock[101];
-	float BlockLength;
-	float CompletedBlockLength;
+	double BlockLength;
+	double CompletedBlockLength;
 	unsigned char TargetPoint;
 	unsigned short Tool;
 	unsigned short Frame;
 	unsigned short M[101];
+	unsigned short DI_[101];
+	unsigned short DO_[101];
 	unsigned char TrackActive;
 	unsigned char TrackSynch;
 	unsigned char TangActive;
-	float TangOffset;
+	double TangOffset;
 	unsigned short ActiveError;
 	unsigned short ErrorLine;
 	enum Robot_Monitor_State_Type State;

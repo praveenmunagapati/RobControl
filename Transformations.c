@@ -3,12 +3,12 @@
 #include "Robots.h"
 #include "Misc.h"
 
-unsigned short Transformations(struct Mech_Type* Mechanics, unsigned char Mode, float JointAxes[6], float PathAxes[6], float Axes[6])
+unsigned short Transformations(struct Mech_Type* Mechanics, unsigned char Mode, double JointAxes[6], double PathAxes[6], double Axes[6])
 {
 	
     unsigned short Status;
-    unsigned short (*UserDirect)(Link_Type[6],float[6],float[6],float[6]) = Mechanics->UserTrf.Direct;
-    unsigned short (*UserInverse)(Link_Type[6],float[6],float[6],float[6]) = Mechanics->UserTrf.Inverse;
+    unsigned short (*UserDirect)(Link_Type[6],double[6],double[6],double[6]) = Mechanics->UserTrf.Direct;
+    unsigned short (*UserInverse)(Link_Type[6],double[6],double[6],double[6]) = Mechanics->UserTrf.Inverse;
 	
 	if (Mode == TRF_DIRECT)	//direct transformations -> calculate path axes from joint axes
 	{
@@ -47,7 +47,11 @@ unsigned short Transformations(struct Mech_Type* Mechanics, unsigned char Mode, 
 				Axes[5] = 0;
 				break;
 		
-			case ARM:
+            case RTCP:
+                Status = RTCP_Direct(Mechanics->Links,JointAxes,PathAxes,Axes);
+                break;
+            
+            case ARM:
 				Status = ArmDirect(Mechanics->Links,JointAxes,PathAxes,Axes);
 				break;
 
@@ -86,8 +90,8 @@ unsigned short Transformations(struct Mech_Type* Mechanics, unsigned char Mode, 
 	else if (Mode == TRF_INVERSE)	//inverse transformations -> calculate joint axes from path axes
 	{
 		
-		switch (Mechanics->Type)
-		{
+		switch (Mechanics->Type) {
+            
 			case CNC:
 				Axes[0] = PathAxes[0];
 				Axes[1] = PathAxes[1];
@@ -119,7 +123,11 @@ unsigned short Transformations(struct Mech_Type* Mechanics, unsigned char Mode, 
 				Axes[4] = 0;
 				Axes[5] = 0;
 				break;
-		
+
+            case RTCP:
+                Status = RTCP_Inverse(Mechanics->Links,PathAxes,JointAxes,Axes);
+                break;
+            
 			case ARM:
 				Status = ArmInverse(Mechanics->Links,PathAxes,JointAxes,Axes);
 				break;
@@ -145,16 +153,11 @@ unsigned short Transformations(struct Mech_Type* Mechanics, unsigned char Mode, 
 		}
 
 		int i=0;
-		for(i=0;i<6;i++)
-		{
+		for(i=0;i<6;i++) {
 			Axes[i] = RoundToEpsilon(Axes[i]);
 		}
-
-
-	}
-
-	else //this mode does not exist
-	{
+        
+	} else {//this mode does not exist
 		Status = ERR_TRF_MODE;	
 	}
 

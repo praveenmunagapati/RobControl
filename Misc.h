@@ -9,53 +9,53 @@
 
 typedef struct RefPoint_Type
 {	
-    float Axes[6];
+    double Axes[6];
     unsigned char Defined[6];
 } RefPoint_Type;
 
 typedef struct Edge_Type
 {
-    float Radius;
-    float Length;
+    double Radius;
+    double Length;
     Point_Type CtrlPoint[7]; //#5 and #6 are the same as #0 and #4 in joint world
-    float tangAngleStart;
-    float tangAngleEnd;
+    double tangAngleStart;
+    double tangAngleEnd;
     Quat_Type EdgeQuat; //used only for edges of PTP movements
-    float QuatAngle;
+    double QuatAngle;
 } Edge_Type;
 
 typedef struct Spline_Type
 {
-    float LengthA;
-    float LengthB;
+    double LengthA;
+    double LengthB;
     Point_Type CtrlPoint[4];
 } Spline_Type;
 
 typedef struct Path_Type
 {	
-	float StartPointPath[6];
-	float StartPointJoint[6];
-	float MiddlePointPath[6];
-	float MiddlePointJoint[6];
-	float TargetPointPath[6];
-	float TargetPointJoint[6];
-	float Radius;
-	float Center[3];
-	float Length;
-	float MiddleLength;
-	float Normal[3];
-	float StartVersor[3];
-	float CrossVersor[3];
-	float MiddleVersor[3];
-	float EndVersor[3];
-	float RotAngle;
+	double StartPointPath[6];
+	double StartPointJoint[6];
+	double MiddlePointPath[6];
+	double MiddlePointJoint[6];
+	double TargetPointPath[6];
+	double TargetPointJoint[6];
+	double Radius;
+	double Center[3];
+	double Length;
+	double MiddleLength;
+	double Normal[3];
+	double StartVersor[3];
+	double CrossVersor[3];
+	double MiddleVersor[3];
+	double EndVersor[3];
+	double RotAngle;
 	Quat_Type StartQuat;
 	Quat_Type MiddleQuat;
 	Quat_Type EndQuat;
-	float QuatAngle;	//from start to end
-	float QuatAngle1;	//from start to middle
-	float QuatAngle2;	//from middle to end
-	float uM; //position of middle point (0..1)
+	double QuatAngle;	//from start to end
+	double QuatAngle1;	//from start to middle
+	double QuatAngle2;	//from middle to end
+	double uM; //position of middle point (0..1)
 	Edge_Type StartEdge;
     Edge_Type EndEdge;
     Spline_Type Spline;
@@ -83,11 +83,12 @@ typedef struct MotionPackage_Type
     unsigned short CenterPoint;
     unsigned short Frame;
     unsigned short Tool;
-    float Round;
-    float MaxSpeed;
+    double Round;
+    double MaxSpeed;
     unsigned char M_Index[MAX_MFUNC+1];
-    float DelayTime;
-    float Feedrate;
+    unsigned char IO_Index;
+    double DelayTime;
+    double Feedrate;
     unsigned char FeedrateType;
     unsigned short Sub;
     struct Path_Type Path;
@@ -95,16 +96,16 @@ typedef struct MotionPackage_Type
     unsigned long LineNumber;
     char BlockString[MAX_BLOCK_SIZE+1];
     Label_Type Label;
-    float BlockLength;
-    float BlockLengthIdeal;
+    double BlockLength;
+    double BlockLengthIdeal;
     unsigned char Planned;
-    float StartJointVector[6];
-    float EndJointVector[6];
-    float StartPathVector[3];
-    float EndPathVector[3];
-    float TransitionAngle;
-    float EndSpeed;
-    float EndAcc;	
+    double StartJointVector[6];
+    double EndJointVector[6];
+    double StartPathVector[3];
+    double EndPathVector[3];
+    double TransitionAngle;
+    double EndSpeed;
+    double EndAcc;	
     unsigned short TrkIndex;
     unsigned short TangCmd;
 } MotionPackage_Type;
@@ -123,7 +124,7 @@ typedef struct Buffer_Type
     unsigned char Planned;
     unsigned char Synch; //used by synch M-functions to restart the halted PP 
     unsigned char IP_TrkIndex; //keeps note of what tracking index is currently active (IP-synch)
-    float ModalFeedrate; //save feedrate as modal
+    double ModalFeedrate; //save feedrate as modal
     unsigned char ModalFeedrateType; //save also feedrate type as modal
     Goto_Type GotoBuffer[MAX_SUBLEVEL];
     Goto_Type SubBuffer[MAX_SUBLEVEL];
@@ -131,16 +132,16 @@ typedef struct Buffer_Type
 
 typedef struct Filter_Type
 {
-    float InputValue;
+    double InputValue;
     unsigned char Enable;
     unsigned short Window;
-    float OutputValue;
-    float Buffer[1000];
+    double OutputValue;
+    double Buffer[1000];
     unsigned short Index;
 }Filter_Type;
 
 unsigned short LineFromString(char* s, char* line, unsigned long linenumber);
-float RoundToEpsilon(float Value);	
+double RoundToEpsilon(double Value);	
 void MovingAverageFilter(struct Filter_Type* inst);
 void GaussianFilter(struct Filter_Type* inst);
 unsigned short CheckConst();

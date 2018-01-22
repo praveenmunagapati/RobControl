@@ -24,15 +24,15 @@ char *my_strcasestr(const char *arg1, const char *arg2)
     return NULL;
 }
 
-static float str2float(char* s)
-{// converts string into float - does not support exponential notation - atoff does not work in AS C
-	float result = 0;
+static double str2double(char* s)
+{// converts string into double - does not support exponential notation - atoff does not work in AS C
+	double result = 0;
 	int i = 0;
 	int sign = 1;
 	short digits = 0; //turns true as soon as digits appear, after that no '-' or empty space can exist
 	short decpoint = 0; //turns true when the decimal point is detected
 	
-	if (!strlen(s)) return(0.0f);
+	if (!strlen(s)) return(0.0);
 
 	int decimalPointLoc = strlen(s);
 
@@ -62,12 +62,12 @@ static float str2float(char* s)
 		
 		if (i < decimalPointLoc)
 		{// integer part
-			result *= 10.0f;
+			result *= 10.0;
 			result += (int)(s[i] - '0');
 		}
 		else
 		{// fractional part
-			result += (float)(s[i] - '0')*(pow(10,decimalPointLoc-i));
+			result += (double)(s[i] - '0')*(pow(10,decimalPointLoc-i));
 		}
 		
 	}
@@ -84,8 +84,8 @@ unsigned short Interpreter(char* Block, MotionPackage_Type* Package)
 	int i = 0;
 	
 	//save modal feedrate (if exists) before clearing package
-	float ModalFeedrate = Package->Feedrate;
-	float ModalFeedrateType = Package->FeedrateType;
+	double ModalFeedrate = Package->Feedrate;
+	double ModalFeedrateType = Package->FeedrateType;
 	
 	memset(Package,0,sizeof(MotionPackage_Type));
 	Package->Feedrate = ModalFeedrate;
@@ -282,7 +282,7 @@ unsigned short Interpreter(char* Block, MotionPackage_Type* Package)
             return ERR_IP_SYNTAX;
         }
 		Package->RefPoint.Defined[0] = 1;
-		Package->RefPoint.Axes[0] = str2float(strParameter+3);
+		Package->RefPoint.Axes[0] = str2double(strParameter+3);
 	}
 	strParameter = my_strcasestr(Block,"J2=");
 	if (strParameter != 0)
@@ -302,7 +302,7 @@ unsigned short Interpreter(char* Block, MotionPackage_Type* Package)
             return ERR_IP_SYNTAX;
         }
         Package->RefPoint.Defined[1] = 1;
-		Package->RefPoint.Axes[1] = str2float(strParameter+3);
+		Package->RefPoint.Axes[1] = str2double(strParameter+3);
 	}
 	strParameter = my_strcasestr(Block,"J3=");
 	if (strParameter != 0)
@@ -322,7 +322,7 @@ unsigned short Interpreter(char* Block, MotionPackage_Type* Package)
             return ERR_IP_SYNTAX;
         }
         Package->RefPoint.Defined[2] = 1;
-		Package->RefPoint.Axes[2] = str2float(strParameter+3);
+		Package->RefPoint.Axes[2] = str2double(strParameter+3);
 	}
 	strParameter = my_strcasestr(Block,"J4=");
 	if (strParameter != 0)
@@ -342,7 +342,7 @@ unsigned short Interpreter(char* Block, MotionPackage_Type* Package)
             return ERR_IP_SYNTAX;
         }
         Package->RefPoint.Defined[3] = 1;
-		Package->RefPoint.Axes[3] = str2float(strParameter+3);
+		Package->RefPoint.Axes[3] = str2double(strParameter+3);
 	}
 	strParameter = my_strcasestr(Block,"J5=");
 	if (strParameter != 0)
@@ -362,7 +362,7 @@ unsigned short Interpreter(char* Block, MotionPackage_Type* Package)
             return ERR_IP_SYNTAX;
         }
         Package->RefPoint.Defined[4] = 1;
-		Package->RefPoint.Axes[4] = str2float(strParameter+3);
+		Package->RefPoint.Axes[4] = str2double(strParameter+3);
 	}
 	strParameter = my_strcasestr(Block,"J6=");
 	if (strParameter != 0)
@@ -382,7 +382,7 @@ unsigned short Interpreter(char* Block, MotionPackage_Type* Package)
             return ERR_IP_SYNTAX;
         }
         Package->RefPoint.Defined[5] = 1;
-		Package->RefPoint.Axes[5] = str2float(strParameter+3);
+		Package->RefPoint.Axes[5] = str2double(strParameter+3);
 	}
 
     /* look for feedrate */
@@ -415,7 +415,7 @@ unsigned short Interpreter(char* Block, MotionPackage_Type* Package)
 			else
 				break;	//digits found -> use atoff to read them
 		}
-		Package->Feedrate = str2float(strParameter+offset);	
+		Package->Feedrate = str2double(strParameter+offset);	
 		if (Package->Feedrate <=0)
 		{
 			return ERR_IP_FEEDRATE;
@@ -426,27 +426,41 @@ unsigned short Interpreter(char* Block, MotionPackage_Type* Package)
 		return ERR_IP_FEEDRATE;
 	}		
 
-	/* look for Delay time */
+	/* look for Delay time or for Signal input */
 	strMovement = my_strcasestr(Block,"WAIT");
 	if (strMovement != 0)
 	{
 		if (Package->MovementType != MOVE_UNDEF) return ERR_IP_CONFLICT;
-		Package->MovementType = MOVE_DELAY;
+		
 		for(i=4;strMovement[i]!='\0';i++)
 		{
 			if (strMovement[i]==' ')
 				continue;	//ignore emtpy spaces
-			if (((strMovement[i]<'0')||(strMovement[i]>'9'))&&((strMovement[i]!='.')))
-				return ERR_IP_SYNTAX;	//only digits are allowed
+            if ((strMovement[i]>='0' && strMovement[i]<='9')|| strMovement[i]=='.')
+            {//digits found -> wait for time
+                Package->MovementType = MOVE_DELAY;
+                break;
+            }
+            else if (strMovement[i]=='D' && strMovement[i+1]=='I')
+            {//DI found -> wait for signal
+                Package->MovementType = MOVE_WAITDI;
+                break;                
+            }
 			else
-				break;	//digits found -> use atoff to read them
+				return ERR_IP_SYNTAX;
 		}
-        if (strMovement[i]==0)
-        {//end of line - no time programmed after WAIT
-            return ERR_IP_SYNTAX;
+        
+        if (Package->MovementType == MOVE_DELAY)
+        {
+            if (strMovement[i]==0) return ERR_IP_SYNTAX; //end of line - no delay time programmed
+            Package->DelayTime = str2double(strMovement+i-1);
         }
-        Package->DelayTime = str2float(strMovement+4);
-	}
+        else
+        {
+            if (strMovement[i+2]==0) return ERR_IP_SYNTAX; //end of line - no delay time programmed
+            Package->IO_Index = atoi(strMovement+i+2);
+        }
+    }
 
 	/* look for Tracking TRK */
 	strMovement = my_strcasestr(Block,"TRK");
@@ -492,6 +506,81 @@ unsigned short Interpreter(char* Block, MotionPackage_Type* Package)
         }
     }
 
+    /* look for RESET */
+    strMovement = my_strcasestr(Block,"RESET");
+    if (strMovement != 0)
+    {
+        if (Package->MovementType != MOVE_UNDEF) return ERR_IP_CONFLICT;
+        Package->MovementType = MOVE_RESETDO;
+        /*
+        for(i=8;strMovement[i]!='\0';i++)
+        {
+            if (strMovement[i]==' ')
+                continue;	//ignore emtpy spaces
+            if ((strMovement[i]<'0')||(strMovement[i]>'9'))
+                return ERR_IP_SYNTAX;	//only digits are allowed
+            else
+                break;	//digits found -> use atoi to read them
+        }
+        Package->IO_Index = atoi(strMovement+8);
+        if (strMovement[i]=='\0') //IO index not provided
+        {
+            return ERR_IP_IO_INDEX;
+        }
+        if (Package->IO_Index > MAX_IO) return ERR_IP_IO_INDEX;
+        */
+    }
+
+    /* look for SET */
+    strMovement = my_strcasestr(Block,"SET");
+    if ((strMovement != 0)&&(Package->MovementType != MOVE_RESETDO)) //avoid conflict with reset_do
+    {
+        if (Package->MovementType != MOVE_UNDEF) return ERR_IP_CONFLICT;
+        Package->MovementType = MOVE_SETDO;
+        /*
+        for(i=6;strMovement[i]!='\0';i++)
+        {
+            if (strMovement[i]==' ')
+                continue;	//ignore emtpy spaces
+            if ((strMovement[i]<'0')||(strMovement[i]>'9'))
+                return ERR_IP_SYNTAX;	//only digits are allowed
+            else
+                break;	//digits found -> use atoi to read them
+        }
+        Package->IO_Index = atoi(strMovement+6);
+        if (strMovement[i]=='\0') //IO index not provided
+        {
+            return ERR_IP_IO_INDEX;
+        }
+        if (Package->IO_Index > MAX_IO) return ERR_IP_IO_INDEX;
+        */
+    }
+  
+    /* look for target DO point */
+    strParameter = my_strcasestr(Block,"DO");
+    if (strParameter != 0)
+    {
+        for(i=2;strParameter[i]!='\0';i++)
+        {
+            if (strParameter[i]==' ')
+                continue;	//ignore emtpy spaces
+            if ((strParameter[i]<'0')||(strParameter[i]>'9'))
+                return ERR_IP_SYNTAX;	//only digits are allowed
+            else
+                break;	//digits found -> use atoi to read them
+        }
+        if (strParameter[i]==0)
+        {
+            return ERR_IP_IO_INDEX;
+        }
+        Package->IO_Index = atoi(strParameter+2);
+        if (Package->IO_Index > MAX_IO) return ERR_IP_IO_INDEX;
+    }
+    else if ((Package->MovementType == MOVE_RESETDO)||(Package->MovementType == MOVE_SETDO))
+    {
+        return ERR_IP_IO_INDEX;
+    }
+    
     /* look for rotation angle (or tangential offset) */
     strParameter = my_strcasestr(Block,"H");
     if ((strParameter != 0)&&(Package->MovementType != MOVE_HOME))
@@ -509,12 +598,12 @@ unsigned short Interpreter(char* Block, MotionPackage_Type* Package)
         {//end of line - no value programmed after H
             return ERR_IP_SYNTAX;
         }
-        Package->Path.RotAngle = str2float(strParameter+1);
+        Package->Path.RotAngle = str2double(strParameter+1);
     }
 	
     /* look for tool */
 	strParameter = my_strcasestr(Block,"T");
-	if ((strParameter != 0)&&(Package->MovementType != MOVE_DELAY)&&(Package->MovementType != MOVE_GOTO)&&(Package->MovementType != MOVE_TRK)&&(Package->MovementType != MOVE_TANG)) //to avoid conflicts with "WAIT", "GOTO", "TRK", "TANG"
+	if ((strParameter != 0)&&(Package->MovementType != MOVE_DELAY)&&(Package->MovementType != MOVE_GOTO)&&(Package->MovementType != MOVE_TRK)&&(Package->MovementType != MOVE_TANG)&&(Package->MovementType != MOVE_RESETDO)&&(Package->MovementType != MOVE_SETDO)&&(Package->MovementType != MOVE_WAITDI)) //to avoid conflicts with "T" in other commands
 	{
 		for(i=1;strParameter[i]!='\0';i++)
 		{
@@ -534,6 +623,10 @@ unsigned short Interpreter(char* Block, MotionPackage_Type* Package)
 		{
 			return ERR_IP_TOOLINDEX;
 		}
+        if (Package->MovementType == MOVE_UNDEF)
+        {
+            Package->MovementType = MOVE_TOOL;
+        }
 	}
 
 	/* look for frame */
@@ -563,7 +656,7 @@ unsigned short Interpreter(char* Block, MotionPackage_Type* Package)
 	/* look for round edge */
 	Package->Round = -1; //round edge not defined
 	strParameter = my_strcasestr(Block,"R");
-	if ((strParameter != 0)&&(Package->MovementType != MOVE_TRK)) //to avoid conflicts with "TRK"
+	if ((strParameter != 0)&&(Package->MovementType != MOVE_TRK)&&(Package->MovementType != MOVE_RESETDO)) //to avoid conflicts with "R" in other commands
 	{
 		for(i=1;strParameter[i]!='\0';i++)
 		{
@@ -578,7 +671,7 @@ unsigned short Interpreter(char* Block, MotionPackage_Type* Package)
         {//end of line - no value programmed after R
             return ERR_IP_SYNTAX;
         }
-		Package->Round = str2float(strParameter+1);
+		Package->Round = str2double(strParameter+1);
 	}
 
 	/* look for End of program */
@@ -606,7 +699,7 @@ unsigned short Interpreter(char* Block, MotionPackage_Type* Package)
 		}
 		//else return ERR_IP_MFUNCINDEX; //cannot use this line because atoi(ML) returns 0!
 		strMovement++;
-		strMovement = my_strcasestr(strMovement,"M");		
+		strMovement = my_strcasestr(strMovement,"M");	
 	}
 
 	return STATUS_OK;

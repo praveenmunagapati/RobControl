@@ -5,7 +5,7 @@ A simple C library to control industrial robots.
 ![RobotControl V1.2](/robot.png)
 
 ## Main features ##
-- Kinematic models: 3ax Cartesian, 4ax SCARA, 4ax Delta, 4ax Palletizer, 6ax articulated robot
+- Kinematic models: 3ax Cartesian, 4ax SCARA, 4ax Delta, 4ax Palletizer, 5ax RTCP, 6ax articulated robot
 - Manual jogging of axes in joint, base and tool coordinate system
 - Automatic run of NC programs and streamed block lists with path-blending
 - PTP and interpolated movements (lines, circles, cubic splines)
@@ -21,3 +21,4 @@ A simple C library to control industrial robots.
 - Single-step mode
 - Execution of nested subroutines
 - Tangential axis
+- Automatic tool calibration

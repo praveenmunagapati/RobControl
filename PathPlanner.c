@@ -10,42 +10,42 @@
 #define max(a,b) ( (a>=b)?a:b )
 #define min(a,b) ( (a<b)?a:b )
 
-static float crt(float x)
+static double crt(double x)
 { //cubic root
 	if (x<0)
 	{
-		return -pow(-x,1.0f/3.0f);
+		return -pow(-x,1.0/3.0);
 	}
 	else
 	{
-		return pow(x,1.0f/3.0f);
+		return pow(x,1.0/3.0);
 	}
 } 
 
-float LineLength(float P1[6],float P2[6], int Size)
+double LineLength(double P1[6],double P2[6], int Size)
 { //calculate length of line from point P1 to point P2
 	int k;
-	float sum;
+	double sum;
 	sum = 0;	
 	for(k=0;k<Size;k++)
-		sum += pow(P2[k]-P1[k],2.0f);
-	return sqrtf(sum);	
+		sum += pow(P2[k]-P1[k],2.0);
+	return sqrt(sum);	
 }
 
-float LineLengthCart(float P1[6],float P2[6])
+double LineLengthCart(double P1[6],double P2[6])
 { //calculate length of line from point P1 to point P2 using only the three cartesian dimensions
-	return sqrtf(pow(P2[0]-P1[0],2.0f)+pow(P2[1]-P1[1],2.0f)+pow(P2[2]-P1[2],2.0f));
+	return sqrt(pow(P2[0]-P1[0],2.0)+pow(P2[1]-P1[1],2.0)+pow(P2[2]-P1[2],2.0));
 }
 
-float LineLengthAng(float P1[6],float P2[6], int Size)
+double LineLengthAng(double P1[6],double P2[6], int Size)
 { //calculate length of angular movement from point P1 to point P2 using quaternions
-	return sqrtf(pow(P2[3]-P1[3],2.0f)+pow(P2[4]-P1[4],2.0f)+pow(P2[5]-P1[5],2.0f));
+	return sqrt(pow(P2[3]-P1[3],2.0)+pow(P2[4]-P1[4],2.0)+pow(P2[5]-P1[5],2.0));
 }
 
-float MinPathTime(float P1[6], float P2[6], int Size, struct Robot_Parameter_JointLimits_Type Limit[6])
+double MinPathTime(double P1[6], double P2[6], int Size, struct Robot_Parameter_JointLimits_Type Limit[6])
 { //calculate minimum time to complete linear path between P1 and P2 given each axis max speed
-	float t;
-	float t_min = 0.0f;
+	double t;
+	double t_min = 0.0;
 	int k;
 
 	for(k=0;k<Size;k++)
@@ -70,12 +70,12 @@ float MinPathTime(float P1[6], float P2[6], int Size, struct Robot_Parameter_Joi
 }
 
 
-float VectorLength(float A[3])
+double VectorLength(double A[3])
 {	//calculate length of vector A
-	return (sqrtf(A[0]*A[0] + A[1]*A[1] + A[2]*A[2]));
+	return (sqrt(A[0]*A[0] + A[1]*A[1] + A[2]*A[2]));
 }
 
-unsigned short CrossProduct(float U[3], float V[3], float N[3])
+unsigned short CrossProduct(double U[3], double V[3], double N[3])
 { // calculate scalar components of cross-product UxV
 	
 	N[0] = U[1]*V[2]-U[2]*V[1];
@@ -85,18 +85,18 @@ unsigned short CrossProduct(float U[3], float V[3], float N[3])
 	return 0;
 }
 
-float DotProduct(float U[3], float V[3])
+double DotProduct(double U[3], double V[3])
 {
 	return (U[0]*V[0] + U[1]*V[1] + U[2]*V[2]);
 	
 }
 
-float AngleBetweenVectors(float U[6], float V[6])
+double AngleBetweenVectors(double U[6], double V[6])
 {// calculate angle between 6-dimensional vectors in degrees
 
 	//calculate vectors lengths
-	float U_Length = sqrtf(U[0]*U[0] + U[1]*U[1] + U[2]*U[2] + U[3]*U[3] + U[4]*U[4] + U[5]*U[5]);
-	float V_Length = sqrtf(V[0]*V[0] + V[1]*V[1] + V[2]*V[2] + V[3]*V[3] + V[4]*V[4] + V[5]*V[5]);
+	double U_Length = sqrt(U[0]*U[0] + U[1]*U[1] + U[2]*U[2] + U[3]*U[3] + U[4]*U[4] + U[5]*U[5]);
+	double V_Length = sqrt(V[0]*V[0] + V[1]*V[1] + V[2]*V[2] + V[3]*V[3] + V[4]*V[4] + V[5]*V[5]);
 
 	//check that input is valid (vector length not zero)
 	if ((U_Length < TRF_EPSILON)||(V_Length < TRF_EPSILON))
@@ -105,10 +105,10 @@ float AngleBetweenVectors(float U[6], float V[6])
 	}
 	
 	//calculate dot product between U and V
-	float UV_DotProduct = U[0]*V[0] + U[1]*V[1] + U[2]*V[2] + U[3]*V[3] + U[4]*V[4] + U[5]*V[5];
+	double UV_DotProduct = U[0]*V[0] + U[1]*V[1] + U[2]*V[2] + U[3]*V[3] + U[4]*V[4] + U[5]*V[5];
 			
 	//extract cosine of angle between U and V
-	float UV_CosAngle = UV_DotProduct/(U_Length*V_Length);
+	double UV_CosAngle = UV_DotProduct/(U_Length*V_Length);
 	
 	//limit it do +/- 1 range (in case of numerical errors)
 	if(UV_CosAngle > 1)
@@ -122,7 +122,7 @@ float AngleBetweenVectors(float U[6], float V[6])
 }
 
 
-unsigned short PointsToVector(float P1[6], float P2[6], float V[3])
+unsigned short PointsToVector(double P1[6], double P2[6], double V[3])
 { //make vector V from point P1 to point P2, i.e. V = P2-P1
 	V[0] = P2[0]-P1[0];
 	V[1] = P2[1]-P1[1];
@@ -130,9 +130,9 @@ unsigned short PointsToVector(float P1[6], float P2[6], float V[3])
 	return 0;	
 }
 
-unsigned short Normalize(float V[3])
+unsigned short Normalize(double V[3])
 {
-	float norm = VectorLength(V);
+	double norm = VectorLength(V);
 	if (norm != 0)
 	{
 		V[0] /= norm;
@@ -145,9 +145,9 @@ unsigned short Normalize(float V[3])
 unsigned short EvalCircle(Path_Type *Circle)
 {//calculate all circle parameters
 	
-	float a,b,c,s;
-	float A[3],B[3],C[3];
-	float alpha, beta, gamma;
+	double a,b,c,s;
+	double A[3],B[3],C[3];
+	double alpha, beta, gamma;
 	
 	/*** calculate radius and center of cicle using cross and dot product properties ***/
 	
@@ -168,13 +168,13 @@ unsigned short EvalCircle(Path_Type *Circle)
 		return ERR_PP_CIRCLEPOINTS;	
 	}
 
-	Circle->Radius = a*b*c /(2.0f*s); //radius
+	Circle->Radius = a*b*c /(2.0*s); //radius
 
 	Normalize(Circle->Normal);	//normal versor	
 	
-	alpha = a*a * DotProduct(B,C) / (2.0f*s*s);
-	beta = b*b * -DotProduct(A,C) / (2.0f*s*s);
-	gamma = c*c * DotProduct(B,A) / (2.0f*s*s);
+	alpha = a*a * DotProduct(B,C) / (2.0*s*s);
+	beta = b*b * -DotProduct(A,C) / (2.0*s*s);
+	gamma = c*c * DotProduct(B,A) / (2.0*s*s);
 
 	/* circle center point coordinates */
 	Circle->Center[0] = alpha * Circle->StartPointPath[0] + beta * Circle->MiddlePointPath[0] + gamma * Circle->TargetPointPath[0];
@@ -197,9 +197,9 @@ unsigned short EvalCircle(Path_Type *Circle)
 	Normalize(Circle->CrossVersor);
 	
 	/* calculate arc length to end point */
-    float Test[3];
+    double Test[3];
     CrossProduct(Circle->StartVersor,Circle->EndVersor,Test);
-    float tmpDotProd = DotProduct(Circle->StartVersor,Circle->EndVersor);
+    double tmpDotProd = DotProduct(Circle->StartVersor,Circle->EndVersor);
     //argument of acos must be between +/- 1 (avoid numerical errors)
     if (tmpDotProd > 1)
         tmpDotProd = 1;
@@ -208,7 +208,7 @@ unsigned short EvalCircle(Path_Type *Circle)
     Circle->Length = Circle->Radius * acos(tmpDotProd);
     if (sign(Circle->Normal[2])*sign(Test[2]) < 0)
     {
-        Circle->Length = Circle->Radius * 2.0f * PI - Circle->Length;
+        Circle->Length = Circle->Radius * 2.0 * PI - Circle->Length;
     }
 	
 	/* calculate arc length to middle point */
@@ -222,7 +222,7 @@ unsigned short EvalCircle(Path_Type *Circle)
 	Circle->MiddleLength = Circle->Radius * acos(tmpDotProd);
 	if (sign(Circle->Normal[2])*sign(Test[2]) < 0)
 	{
-		Circle->MiddleLength = Circle->Radius * 2.0f * PI - Circle->MiddleLength;
+		Circle->MiddleLength = Circle->Radius * 2.0 * PI - Circle->MiddleLength;
 	}
 	
 	if ((Circle->Length <= 0)||(Circle->MiddleLength <= 0))
@@ -232,7 +232,7 @@ unsigned short EvalCircle(Path_Type *Circle)
 }
 
 
-unsigned short MaxBlockSpeed(float d, float a, float j, float v_end, float *v_max)
+unsigned short MaxBlockSpeed(double d, double a, double j, double v_end, double *v_max)
 { //find maximum (initial) speed of a block with length d, acceleration a, jerk j, and final speed v_end
 
 	if ((d<0)||(v_end<0)||(a<=0)||(j<=0))
@@ -246,22 +246,22 @@ unsigned short MaxBlockSpeed(float d, float a, float j, float v_end, float *v_ma
 		return 0;	
 	}
 		
-	float Delta = 2.0f*a*v_end/j + a*a*a/j/j;	
+	double Delta = 2.0*a*v_end/j + a*a*a/j/j;	
 	if (d<=Delta)
 	{// a cannot be reached -> reduce it. There is no linear acceleration section, it's all jerk limited movement
-		float p3 = 2.0f*v_end*j/3.0f;
-		float q2 = -d*j*j/2.0f;
-		float Det = p3*p3*p3+q2*q2;
-		float alpha = crt(-q2+sqrtf(Det));
-		float betha = crt(-q2-sqrtf(Det));
-		float a_max = alpha + betha;
+		double p3 = 2.0*v_end*j/3.0;
+		double q2 = -d*j*j/2.0;
+		double Det = p3*p3*p3+q2*q2;
+		double alpha = crt(-q2+sqrt(Det));
+		double betha = crt(-q2-sqrt(Det));
+		double a_max = alpha + betha;
 		*v_max = (v_end + a_max*a_max/j);
 		return 0;
 	}
 	else
 	{// a can be reached, there is a linear acceleration section
-		float Det = a*a/j/j/4.0f + 2.0f*d/a + v_end*v_end/a/a - v_end/j;
-		*v_max = a*(sqrtf(Det) - a/j/2.0f);
+		double Det = a*a/j/j/4.0 + 2.0*d/a + v_end*v_end/a/a - v_end/j;
+		*v_max = a*(sqrt(Det) - a/j/2.0);
 		return 0;
 	}
 
@@ -269,16 +269,16 @@ unsigned short MaxBlockSpeed(float d, float a, float j, float v_end, float *v_ma
 
 
 
-unsigned short MaxMovementDynamics(float d, float a, float j, float v, float v_start, float v_end, float a_start, float *v_max, float *a_up_max, float *a_down_max, float *d_linear)
+unsigned short MaxMovementDynamics(double d, double a, double j, double v, double v_start, double v_end, double a_start, double *v_max, double *a_up_max, double *a_down_max, double *d_linear)
 { //find maximum speed and acceleration of a movement with length d, speed v, acceleration a, jerk j, initial and final speed v_start and v_end, initial acceleration a_start
 	//also returns size of linear speed interval
 	
-	float d_start, d_end;
-	float t_start, t_end;
-	float a_max, a_up, a_down;
-	float dv_start, dv_end;
+	double d_start, d_end;
+	double t_start, t_end;
+	double a_max, a_up, a_down;
+	double dv_start, dv_end;
 	
-	float step, Delta, v_high, v_low;
+	double step, Delta, v_high, v_low;
 	
 	if ((d<0)||(v_end<0)||(v_end>v)||(v_start<0)||(a<=0)||(j<=0)||(v<=0)||(fabs(a_start)>a+TRF_EPSILON))
 	//note that programmed speed for path planner cannot be negative
@@ -305,7 +305,7 @@ unsigned short MaxMovementDynamics(float d, float a, float j, float v, float v_s
 	
 	/*** check if v_end can be reached ***/
 	dv_start = v_end - v_start;
-	a_max = sqrtf(j*fabs(dv_start)+0.5f*a_start*a_start); //max acc (no linear segment) - normally limited by "a" (limit)
+	a_max = sqrt(j*fabs(dv_start)+0.5*a_start*a_start); //max acc (no linear segment) - normally limited by "a" (limit)
 
 	/* REMOVED because v_end is not max speed and it can be exceeded. Think for example of a case when v_end=v_start.
 	if (fabs(a_start)>a_max+TRF_EPSILON)	//a_start too high, max speed will be exceeded!
@@ -315,22 +315,22 @@ unsigned short MaxMovementDynamics(float d, float a, float j, float v, float v_s
 	if (a_max > a) a_max = a;
 	if (a_max != 0)
 	{
-		float t0 = (a_max-fabs(a_start))/j;
+		double t0 = (a_max-fabs(a_start))/j;
 		if (t0<0) t0=0;
 		
-		float t1 = 1/a_max * (fabs(dv_start) -0.5f*a_max*a_max/j -fabs(a_start)*(a_max-fabs(a_start))/j -0.5f*(a_max-fabs(a_start))*(a_max-fabs(a_start))/j);
+		double t1 = 1/a_max * (fabs(dv_start) -0.5*a_max*a_max/j -fabs(a_start)*(a_max-fabs(a_start))/j -0.5*(a_max-fabs(a_start))*(a_max-fabs(a_start))/j);
 		if (t1<0) t1=0;
 		
-		float t2 = a_max/j;
+		double t2 = a_max/j;
 
 		t_start = t0 + t1 + t2;
 		
-		float v1 = v_start + (fabs(a_start) * t0 + 0.5f *j *t0*t0)*sign(dv_start); //speed at end of t0
-		float v2 = v1 + (a_max*t1)*sign(dv_start); //speed at end of t1
+		double v1 = v_start + (fabs(a_start) * t0 + 0.5 *j *t0*t0)*sign(dv_start); //speed at end of t0
+		double v2 = v1 + (a_max*t1)*sign(dv_start); //speed at end of t1
 
-		d_start = (v_start * t0 + (j * t0*t0*t0 / 6.0f + 0.5f * fabs(a_start) * t0*t0)* sign(dv_start));
-		d_start += (v1 * t1 + (0.5f * a_max * t1*t1) * sign(dv_start));
-		d_start += (v2 * t2 + (0.5f * a_max * t2*t2 - j * t2*t2*t2 / 6.0f) * sign(dv_start));
+		d_start = (v_start * t0 + (j * t0*t0*t0 / 6.0 + 0.5 * fabs(a_start) * t0*t0)* sign(dv_start));
+		d_start += (v1 * t1 + (0.5 * a_max * t1*t1) * sign(dv_start));
+		d_start += (v2 * t2 + (0.5 * a_max * t2*t2 - j * t2*t2*t2 / 6.0) * sign(dv_start));
 	}
 	else
 	{
@@ -353,24 +353,24 @@ unsigned short MaxMovementDynamics(float d, float a, float j, float v, float v_s
 
 	// interval from v_start to v
 	dv_start = v - v_start;
-	a_up = sqrtf(j*fabs(dv_start)+0.5f*a_start*a_start); //max acc (no linear segment) - normally limited by a (limit)
+	a_up = sqrt(j*fabs(dv_start)+0.5*a_start*a_start); //max acc (no linear segment) - normally limited by a (limit)
 	if (fabs(a_start)>a_up+TRF_EPSILON)	//a_start too high, max speed will be exceeded!
 		return 252;
 	if (a_up > a) a_up = a;
 	if (a_up != 0)
 	{
-		float t0 = (a_up-fabs(a_start))/j;
-		float t1 = 1/a_up * (fabs(dv_start) -0.5f*a_up*a_up/j -fabs(a_start)*(a_up-fabs(a_start))/j -0.5f*(a_up-fabs(a_start))*(a_up-fabs(a_start))/j);
-		float t2 = a_up/j;
+		double t0 = (a_up-fabs(a_start))/j;
+		double t1 = 1/a_up * (fabs(dv_start) -0.5*a_up*a_up/j -fabs(a_start)*(a_up-fabs(a_start))/j -0.5*(a_up-fabs(a_start))*(a_up-fabs(a_start))/j);
+		double t2 = a_up/j;
 
 		t_start = t0 + t1 + t2;
 		
-		float v1 = v_start + (fabs(a_start) * t0 + 0.5f *j *t0*t0)*sign(dv_start); //speed at end of t0
-		float v2 = v1 + (a_up*t1)*sign(dv_start); //speed at end of t1
+		double v1 = v_start + (fabs(a_start) * t0 + 0.5 *j *t0*t0)*sign(dv_start); //speed at end of t0
+		double v2 = v1 + (a_up*t1)*sign(dv_start); //speed at end of t1
 
-		d_start = (v_start * t0 + (j * t0*t0*t0 / 6.0f + 0.5f * fabs(a_start) * t0*t0)* sign(dv_start));
-		d_start += (v1 * t1 + (0.5f * a_up * t1*t1) * sign(dv_start));
-		d_start += (v2 * t2 + (0.5f * a_up * t2*t2 - j * t2*t2*t2 / 6.0f) * sign(dv_start));
+		d_start = (v_start * t0 + (j * t0*t0*t0 / 6.0 + 0.5 * fabs(a_start) * t0*t0)* sign(dv_start));
+		d_start += (v1 * t1 + (0.5 * a_up * t1*t1) * sign(dv_start));
+		d_start += (v2 * t2 + (0.5 * a_up * t2*t2 - j * t2*t2*t2 / 6.0) * sign(dv_start));
 	}
 	else
 	{
@@ -380,12 +380,12 @@ unsigned short MaxMovementDynamics(float d, float a, float j, float v, float v_s
 	
 	// interval from v to v_end
 	dv_end = fabs(v - v_end);
-	a_down = sqrtf(j*(dv_end));
+	a_down = sqrt(j*(dv_end));
 	if (a_down > a) a_down = a;
 	if (a_down != 0)
 	{
 		t_end = dv_end/a_down + a_down/j;
-		d_end = 0.5f * (dv_end*dv_end/a_down + dv_end*a_down/j);
+		d_end = 0.5 * (dv_end*dv_end/a_down + dv_end*a_down/j);
 		if (v<v_end)
 			d_end += v * t_end;
 		else
@@ -433,15 +433,15 @@ unsigned short MaxMovementDynamics(float d, float a, float j, float v, float v_s
 			
 			//calculate a_max from d1+d2+d3=d
 
-			float aaa = (v_start+v_end)/j+fabs(a_start)/j/j-fabs(a_start)*fabs(a_start)/j/j;
-			float bbb = d + v_start*fabs(a_start)/j - fabs(a_start)*fabs(a_start)*fabs(a_start)/3.0f/j/j;
-			float ccc = (v_start-v_end+fabs(a_start)*fabs(a_start)/2.0f/j)*(v_start+v_end+fabs(a_start)*fabs(a_start)/j);
-			float ddd = bbb*bbb-aaa*ccc;		
+			double aaa = (v_start+v_end)/j+fabs(a_start)/j/j-fabs(a_start)*fabs(a_start)/j/j;
+			double bbb = d + v_start*fabs(a_start)/j - fabs(a_start)*fabs(a_start)*fabs(a_start)/3.0/j/j;
+			double ccc = (v_start-v_end+fabs(a_start)*fabs(a_start)/2.0/j)*(v_start+v_end+fabs(a_start)*fabs(a_start)/j);
+			double ddd = bbb*bbb-aaa*ccc;		
 			
 			if ((ddd<0)||(aaa==0))
 				return 254;	//should never happen with current settings
 			
-			*a_up_max = - (bbb - sqrtf(ddd)) / aaa; //acceleration is negative because movement is speeding down to v_end
+			*a_up_max = - (bbb - sqrt(ddd)) / aaa; //acceleration is negative because movement is speeding down to v_end
 
 			*a_down_max = 0; //no ending interval
 			*d_linear = 0; // no linear speed interval
@@ -455,17 +455,17 @@ unsigned short MaxMovementDynamics(float d, float a, float j, float v, float v_s
 		v_low = max(v_start,v_end);
 		do
 		{
-			step += 0.01f;
+			step += 0.01;
 
 			if (Delta < 0)
 			{
 				v_high = v;
-				v = (v_high + v_low)/2.0f;
+				v = (v_high + v_low)/2.0;
 			}
 			else if (Delta > 0)
 			{
 				v_low = v;
-				v = (v_high + v_low)/2.0f;
+				v = (v_high + v_low)/2.0;
 			}
 			else if (Delta == 0)
 			{
@@ -474,22 +474,22 @@ unsigned short MaxMovementDynamics(float d, float a, float j, float v, float v_s
 
 			// interval from v_start to v
 			dv_start = v - v_start;
-			a_up = sqrtf(j*fabs(dv_start)+0.5f*a_start*a_start); //max acc (no linear segment) - normally limited by a (limit)
+			a_up = sqrt(j*fabs(dv_start)+0.5*a_start*a_start); //max acc (no linear segment) - normally limited by a (limit)
 			if (a_up > a) a_up = a;
 			if (a_up != 0)
 			{
-				float t0 = (a_up-fabs(a_start))/j;
-				float t1 = 1/a_up * (fabs(dv_start) -0.5f*a_up*a_up/j -fabs(a_start)*(a_up-fabs(a_start))/j -0.5f*(a_up-fabs(a_start))*(a_up-fabs(a_start))/j);
-				float t2 = a_up/j;
+				double t0 = (a_up-fabs(a_start))/j;
+				double t1 = 1/a_up * (fabs(dv_start) -0.5*a_up*a_up/j -fabs(a_start)*(a_up-fabs(a_start))/j -0.5*(a_up-fabs(a_start))*(a_up-fabs(a_start))/j);
+				double t2 = a_up/j;
 
 				t_start = t0 + t1 + t2;
 		
-				float v1 = v_start + (fabs(a_start) * t0 + 0.5f *j *t0*t0)*sign(dv_start); //speed at end of t0
-				float v2 = v1 + (a_up*t1)*sign(dv_start); //speed at end of t1
+				double v1 = v_start + (fabs(a_start) * t0 + 0.5 *j *t0*t0)*sign(dv_start); //speed at end of t0
+				double v2 = v1 + (a_up*t1)*sign(dv_start); //speed at end of t1
 
-				d_start = (v_start * t0 + (j * t0*t0*t0 / 6.0f + 0.5f * fabs(a_start) * t0*t0)* sign(dv_start));
-				d_start += (v1 * t1 + (0.5f * a_up * t1*t1) * sign(dv_start));
-				d_start += (v2 * t2 + (0.5f * a_up * t2*t2 - j * t2*t2*t2 / 6.0f) * sign(dv_start));
+				d_start = (v_start * t0 + (j * t0*t0*t0 / 6.0 + 0.5 * fabs(a_start) * t0*t0)* sign(dv_start));
+				d_start += (v1 * t1 + (0.5 * a_up * t1*t1) * sign(dv_start));
+				d_start += (v2 * t2 + (0.5 * a_up * t2*t2 - j * t2*t2*t2 / 6.0) * sign(dv_start));
 			}
 			else
 			{
@@ -499,12 +499,12 @@ unsigned short MaxMovementDynamics(float d, float a, float j, float v, float v_s
 	
 			// interval from v to v_end
 			dv_end = v - v_end;
-			a_down = sqrtf(j*(dv_end));
+			a_down = sqrt(j*(dv_end));
 			if (a_down > a) a_down = a;
 			if (a_down != 0)
 			{
 				t_end = dv_end/a_down + a_down/j;
-				d_end = 0.5f * (dv_end*dv_end/a_down + dv_end*a_down/j);
+				d_end = 0.5 * (dv_end*dv_end/a_down + dv_end*a_down/j);
 				if (v<v_end)
 					d_end += v * t_end;
 				else
@@ -536,7 +536,7 @@ unsigned short MaxMovementDynamics(float d, float a, float j, float v, float v_s
 }
 
 
-unsigned short EvaluateBezier (Point_Type P[5], float u, Point_Type *Q,int Size,int Order)
+unsigned short EvaluateBezier (Point_Type P[5], double u, Point_Type *Q,int Size,int Order)
 {// input are Bezier control points P0..P4, time u and size of coordinate system (number of robot's axes); output is point Q
 	
 	unsigned char k,i,j;
@@ -553,7 +553,7 @@ unsigned short EvaluateBezier (Point_Type P[5], float u, Point_Type *Q,int Size,
 		for (i=0; i<=n-k; i++)
 		{
 			for (j=0; j<Size; j++)
-				Point[i].Axes[j] = (1.0f-u)*Point[i].Axes[j] + u*Point[i+1].Axes[j];
+				Point[i].Axes[j] = (1.0-u)*Point[i].Axes[j] + u*Point[i+1].Axes[j];
 		}
 	}
 	
@@ -563,20 +563,20 @@ unsigned short EvaluateBezier (Point_Type P[5], float u, Point_Type *Q,int Size,
 	return 0;
 }
 
-float BezierLength(Point_Type P[5], int Size, int Order)
+double BezierLength(Point_Type P[5], int Size, int Order)
 {// input are Bezier control points P0..P4 and size of coordinate system (number of robot's axes)
 
 	Point_Type Point[2];
 	int i;
 	int k = 10; //increase number of points for more accuracy
-	float Length = 0;
+	double Length = 0;
 	
 	Point[0] = P[0];
 	
 	//evaluate the BezierCurve at different points and then add the distances between them
 	for(i=1;i<=k;i++)
 	{
-		EvaluateBezier(P,(float)(i) / (float) (k),&(Point[1]),Size,Order);
+		EvaluateBezier(P,(double)(i) / (double) (k),&(Point[1]),Size,Order);
 		Length += LineLength(Point[0].Axes,Point[1].Axes,Size);
 		Point[0] = Point[1];
 	}
@@ -585,21 +585,21 @@ float BezierLength(Point_Type P[5], int Size, int Order)
 
 }
 
-float BezierLengthHalf1(Point_Type P[5], int Size, int Order)
+double BezierLengthHalf1(Point_Type P[5], int Size, int Order)
 {// input are Bezier control points P0..P4 and size of coordinate system (number of robot's axes)
  // calculates only length of first half P0..P2
 	
 	Point_Type Point[2];
 	int i;
 	int k = 10; //increase number of points for more accuracy
-	float Length = 0;
+	double Length = 0;
 	
 	Point[0] = P[0];
 	
 	//evaluate the BezierCurve at different points and then add the distances between them
 	for(i=1;i<=k/2;i++)
 	{
-		EvaluateBezier(P,(float)(i) / (float) (k),&(Point[1]),Size,Order);
+		EvaluateBezier(P,(double)(i) / (double) (k),&(Point[1]),Size,Order);
 		Length += LineLength(Point[0].Axes,Point[1].Axes,Size);
 		Point[0] = Point[1];
 	}
@@ -608,21 +608,21 @@ float BezierLengthHalf1(Point_Type P[5], int Size, int Order)
 
 }
 
-float BezierLengthHalf2(Point_Type P[5], int Size, int Order)
+double BezierLengthHalf2(Point_Type P[5], int Size, int Order)
 {// input are Bezier control points P0..P4 and size of coordinate system (number of robot's axes)
 	// calculates only length of second half P2..P4
 
 	Point_Type Point[2];
 	int i;
 	int k = 10; //increase number of points for more accuracy
-	float Length = 0;
+	double Length = 0;
 	
-	EvaluateBezier(P,0.5f,&(Point[0]),Size,Order);
+	EvaluateBezier(P,0.5,&(Point[0]),Size,Order);
 	
 	//evaluate the BezierCurve at different points and then add the distances between them
 	for(i=k/2+1;i<=k;i++)
 	{
-		EvaluateBezier(P,(float)(i) / (float) (k),&(Point[1]),Size,Order);
+		EvaluateBezier(P,(double)(i) / (double) (k),&(Point[1]),Size,Order);
 		Length += LineLength(Point[0].Axes,Point[1].Axes,Size);
 		Point[0] = Point[1];
 	}
@@ -632,7 +632,7 @@ float BezierLengthHalf2(Point_Type P[5], int Size, int Order)
 }
 
 
-unsigned short StoppingDistance(float v_max, float a_max, float j_max, float v_act, float a_act, float* stopping_distance)
+unsigned short StoppingDistance(double v_max, double a_max, double j_max, double v_act, double a_act, double* stopping_distance)
 {//returns the stopping distance of a movement running at v_act and a_act given the
     //v_max, a_max and j_max costraints
 
@@ -645,27 +645,27 @@ unsigned short StoppingDistance(float v_max, float a_max, float j_max, float v_a
         return 255;   
     }
     
-    float dt[4],ds[4];
-    float v_top,a_top;
+    double dt[4],ds[4];
+    double v_top,a_top;
     
     if(a_act > TRF_EPSILON)
     {// movement is accelerating -> need to bring acceleration to zero first
  
         dt[0] = a_act/j_max; 
-        v_top = v_act + 0.5f*a_act*a_act/j_max; //speed reached at the end of the first section
+        v_top = v_act + 0.5*a_act*a_act/j_max; //speed reached at the end of the first section
         
         dt[2] = v_top/a_max - a_max/j_max;
         if (dt[2] <= 0) //no linear section
-            a_max = sqrtf(v_top*j_max);
+            a_max = sqrt(v_top*j_max);
 
         dt[1] = a_max/j_max;
         dt[2] = v_top/a_max - a_max/j_max;
         dt[3] = a_max/j_max;
         
-        ds[0] = v_act*dt[0] + 0.5f*a_act*dt[0]*dt[0] - j_max*dt[0]*dt[0]*dt[0]/6.0f;
-        ds[1] = v_top*dt[1] - (j_max * dt[1]*dt[1]*dt[1] /6.0f);
-        ds[2] = v_top*dt[2] - (0.5f * a_max *dt[2]*dt[2] + 0.5f * a_max*a_max *dt[2]*dt[2] / j_max);
-        ds[3] = v_top*dt[3] - (- j_max*dt[3]*dt[3]*dt[3]/6.0f + 0.5f * a_max *dt[3]*dt[3] + (v_top-0.5f*a_max*a_max/j_max)*dt[3]);
+        ds[0] = v_act*dt[0] + 0.5*a_act*dt[0]*dt[0] - j_max*dt[0]*dt[0]*dt[0]/6.0;
+        ds[1] = v_top*dt[1] - (j_max * dt[1]*dt[1]*dt[1] /6.0);
+        ds[2] = v_top*dt[2] - (0.5 * a_max *dt[2]*dt[2] + 0.5 * a_max*a_max *dt[2]*dt[2] / j_max);
+        ds[3] = v_top*dt[3] - (- j_max*dt[3]*dt[3]*dt[3]/6.0 + 0.5 * a_max *dt[3]*dt[3] + (v_top-0.5*a_max*a_max/j_max)*dt[3]);
  
     }
     else if (a_act < -TRF_EPSILON)
@@ -675,23 +675,23 @@ unsigned short StoppingDistance(float v_max, float a_max, float j_max, float v_a
         a_act = fabs(a_act);
         v_top = v_act;
         
-        a_top = sqrtf(j_max*v_act+0.5f*a_act*a_act);
+        a_top = sqrt(j_max*v_act+0.5*a_act*a_act);
         if (a_top < a_act)
             a_top = a_act;
         if (a_top > a_max)
             a_top = a_max;
 
         dt[1] = (a_top-a_act)/j_max;
-        dt[2] = 1/a_top * (v_act -0.5f*a_top*a_top/j_max -a_act*(a_top-a_act)/j_max -0.5f*(a_top-a_act)*(a_top-a_act)/j_max);
+        dt[2] = 1/a_top * (v_act -0.5*a_top*a_top/j_max -a_act*(a_top-a_act)/j_max -0.5*(a_top-a_act)*(a_top-a_act)/j_max);
         dt[3] = a_top/j_max;
 
-        float v1 = v_top - (a_act*dt[1] + 0.5f *j_max * dt[1]*dt[1]);
-        float v2 = v1 - a_top*dt[2];
+        double v1 = v_top - (a_act*dt[1] + 0.5 *j_max * dt[1]*dt[1]);
+        double v2 = v1 - a_top*dt[2];
 
         ds[0] = 0;
-        ds[1] = v_top*dt[1] - (j_max * dt[1]*dt[1]*dt[1] /6.0f)- 0.5f * a_act * dt[1]*dt[1];
-        ds[2] = v1 *dt[2] - (0.5f * a_top *dt[2]*dt[2]);
-        ds[3] = v2 * dt[3] - (-j_max *dt[3]*dt[3]*dt[3] /6.0f + 0.5f * a_top* dt[3]*dt[3]);
+        ds[1] = v_top*dt[1] - (j_max * dt[1]*dt[1]*dt[1] /6.0)- 0.5 * a_act * dt[1]*dt[1];
+        ds[2] = v1 *dt[2] - (0.5 * a_top *dt[2]*dt[2]);
+        ds[3] = v2 * dt[3] - (-j_max *dt[3]*dt[3]*dt[3] /6.0 + 0.5 * a_top* dt[3]*dt[3]);
  
     }
     else
@@ -702,16 +702,16 @@ unsigned short StoppingDistance(float v_max, float a_max, float j_max, float v_a
       
         dt[2] = v_top/a_max - a_max/j_max;
         if (dt[2] <= 0) //no linear section
-            a_max = sqrtf(v_top*j_max);
+            a_max = sqrt(v_top*j_max);
 
         dt[1] = a_max/j_max;
         dt[2] = v_top/a_max - a_max/j_max;
         dt[3] = a_max/j_max;
   
         ds[0] = 0;
-        ds[1] = v_top*dt[1] - (j_max * dt[1]*dt[1]*dt[1] /6.0f);
-        ds[2] = v_top*dt[2] - (0.5f * a_max *dt[2]*dt[2] + 0.5f * a_max*a_max *dt[2]*dt[2] / j_max);
-        ds[3] = v_top*dt[3] - (- j_max*dt[3]*dt[3]*dt[3]/6.0f + 0.5f * a_max *dt[3]*dt[3] + (v_top-0.5f*a_max*a_max/j_max)*dt[3]);
+        ds[1] = v_top*dt[1] - (j_max * dt[1]*dt[1]*dt[1] /6.0);
+        ds[2] = v_top*dt[2] - (0.5 * a_max *dt[2]*dt[2] + 0.5 * a_max*a_max *dt[2]*dt[2] / j_max);
+        ds[3] = v_top*dt[3] - (- j_max*dt[3]*dt[3]*dt[3]/6.0 + 0.5 * a_max *dt[3]*dt[3] + (v_top-0.5*a_max*a_max/j_max)*dt[3]);
 
     }
         
@@ -722,17 +722,17 @@ unsigned short StoppingDistance(float v_max, float a_max, float j_max, float v_a
 }
 
 
-unsigned short DynamicLimitsViolated(float P1[6], float P2[6], int Size, struct Robot_Parameter_JointLimits_Type Limit[6], float CycleTime, float *redFactor)
+unsigned short DynamicLimitsViolated(double P1[6], double P2[6], int Size, struct Robot_Parameter_JointLimits_Type Limit[6], double CycleTime, double *redFactor)
 { //checks if the dynamic limits of the joints are being violated during the current cycle time
     //returns indexes(+1) of axes where largest violation occurs - e.g. 01010010 means violation on axes 1,4,6
     int k;
-    float tmpRedFactor = 1.0;
+    double tmpRedFactor = 1.0;
    
     unsigned short BadAxes = 0;
     
     for(k=0;k<Size;k++)
     {
-        float JointSpeed = (P2[k]-P1[k]) / CycleTime;
+        double JointSpeed = (P2[k]-P1[k]) / CycleTime;
         if (JointSpeed != 0)
         {
             if ((JointSpeed > 0)&&(Limit[k].VelocityPos / JointSpeed < tmpRedFactor))
@@ -755,16 +755,18 @@ unsigned short DynamicLimitsViolated(float P1[6], float P2[6], int Size, struct 
 }
 
 
-unsigned short  LineCrossBox(float L1[6],float L2[6],float B1[6],float B2[6])
+unsigned short  LineCrossBox(double L1[6],double L2[6],double B1[6],double B2[6])
 { //checks if the segment from L1 to L2 crosses the box defined by B1 and B2
     //note that line (as defined by L1-L2) might still cross box but outside L1-L2 segment
     //in that case the function returns false
     //https://tavianator.com/fast-branchless-raybounding-box-intersections/
     
-    float t[6];
-    float D[3]; //line direction
+    double t[6];
+    double D[3]; //line direction
     PointsToVector(L1,L2,D);
    
+    double LARGE_NUMBER = 1e+10;
+    
     int i;
     for (i=0;i<3;i++)
     {
@@ -775,18 +777,18 @@ unsigned short  LineCrossBox(float L1[6],float L2[6],float B1[6],float B2[6])
         }
         else if (L1[i]>=min(B1[i],B2[i]) && L1[i]<=max(B1[i],B2[i]))
         {
-            t[2*i+0] = FLOAT_MAX;
-            t[2*i+1] = -FLOAT_MAX;        
+            t[2*i+0] = LARGE_NUMBER;
+            t[2*i+1] = -LARGE_NUMBER;        
         }
         else
         {
-            t[2*i+0] = FLOAT_MAX;
-            t[2*i+1] = FLOAT_MAX;        
+            t[2*i+0] = LARGE_NUMBER;
+            t[2*i+1] = LARGE_NUMBER;        
         }
     }
 
-    float tmin = max(max(min(t[0], t[1]), min(t[2], t[3])), min(t[4], t[5]));
-    float tmax = min(min(max(t[0], t[1]), max(t[2], t[3])), max(t[4], t[5]));
+    double tmin = max(max(min(t[0], t[1]), min(t[2], t[3])), min(t[4], t[5]));
+    double tmax = min(min(max(t[0], t[1]), max(t[2], t[3])), max(t[4], t[5]));
         
     if (tmax<0 || tmin>1 || tmin>tmax)
         return 0;
@@ -796,7 +798,7 @@ unsigned short  LineCrossBox(float L1[6],float L2[6],float B1[6],float B2[6])
 }
 
 
-unsigned short PointInBox(float P[6],float B1[6],float B2[6])
+unsigned short PointInBox(double P[6],double B1[6],double B2[6])
 { //checks if the point P is inside the box (returns 1) or outside (returns 0)
     // XYZ says what axes are in and out of the box limits
     
@@ -811,13 +813,13 @@ unsigned short PointInBox(float P[6],float B1[6],float B2[6])
 
 
 
-unsigned short WorkspaceMonitor(unsigned char MovementType, Path_Type* Path, float Tool[6], Robot_Parameter_Workspace_Type Workspace[MAX_ZONE], unsigned short AxesNum, Mech_Type* Mechanics)
+unsigned short WorkspaceMonitor(unsigned char MovementType, Path_Type* Path, double Tool[6], Robot_Parameter_Workspace_Type Workspace[MAX_ZONE], unsigned short AxesNum, Mech_Type* Mechanics)
 { // check if planned movement violates the defined workspace
     // returns index of violated zone (1..MAX_ZONE), 0 otherwise
 
     //path workspace monitoring
     short calculatePoints = 0;
-    float subInc,tmpRotAngle;
+    double subInc,tmpRotAngle;
     int k,j;
     short sub;
     for (k=0;k<MAX_ZONE;k++)
@@ -828,7 +830,7 @@ unsigned short WorkspaceMonitor(unsigned char MovementType, Path_Type* Path, flo
 
         Point_Type subPoints[WS_SUBPOINTS];
 
-        memcpy(subPoints[0].Axes,Path->StartPointPath,24);
+        memcpy(subPoints[0].Axes,Path->StartPointPath,sizeof(subPoints[0].Axes));
                                     
         //calculate inner subpoints in path only if not done yet
         //do not calculate at all if no zones are defined
@@ -852,7 +854,7 @@ unsigned short WorkspaceMonitor(unsigned char MovementType, Path_Type* Path, flo
                 Point_Type tmpTargetJ, tmpTargetX;
                                             
                 //interpolate movement at BlockLength/(WS_SUBPOINTS-1)*sub
-                float u = sub * subInc;
+                double u = sub * subInc;
                 
                 switch(MovementType)
                 {
@@ -911,11 +913,11 @@ unsigned short WorkspaceMonitor(unsigned char MovementType, Path_Type* Path, flo
 
 
 //local help function
-unsigned short ControlPoints(unsigned char MovementType,Path_Type* Path, float BlockLength, Point_Type CtrlPoints[2], unsigned char Edge, unsigned short AxesNum, Mech_Type* Mechanics)
+unsigned short ControlPoints(unsigned char MovementType,Path_Type* Path, double BlockLength, Point_Type CtrlPoints[2], unsigned char Edge, unsigned short AxesNum, Mech_Type* Mechanics)
 {//calculate two control points of a round edge
         
     int j;
-    float DistA, DistB;
+    double DistA, DistB;
   
     switch (MovementType)
     {
@@ -924,11 +926,11 @@ unsigned short ControlPoints(unsigned char MovementType,Path_Type* Path, float B
             if (Edge == EDGE_END)
             {
                 DistA = 1 - Path->EndEdge.Radius / BlockLength;
-                DistB = 1 - Path->EndEdge.Radius / BlockLength / 2.0f;
+                DistB = 1 - Path->EndEdge.Radius / BlockLength / 2.0;
             }
             else //EDGE_START
             {
-                DistA = Path->StartEdge.Radius / BlockLength / 2.0f;
+                DistA = Path->StartEdge.Radius / BlockLength / 2.0;
                 DistB = Path->StartEdge.Radius / BlockLength;
             }
 
@@ -951,9 +953,9 @@ unsigned short ControlPoints(unsigned char MovementType,Path_Type* Path, float B
                     CtrlPoints[0].Axes[j] = Path->Center[j] + Path->Radius * cos(DistA*BlockLength/Path->Radius) * Path->StartVersor[j] + Path->Radius * sin(DistA*BlockLength/Path->Radius) * Path->CrossVersor[j];
                 }
                 //find control point #1 along tangent at distance Path->EndEdge.Radius/2
-                float tmpCrossVersor[3];
+                double tmpCrossVersor[3];
                 PointsToVector(Path->Center,CtrlPoints[0].Axes,tmpCrossVersor);
-                float tmpEndVersor[3];
+                double tmpEndVersor[3];
                 CrossProduct(Path->Normal,tmpCrossVersor,tmpEndVersor);
                 Normalize(tmpEndVersor);
                 for (j=0;j<BEZIER_XYZ;j++)
@@ -971,9 +973,9 @@ unsigned short ControlPoints(unsigned char MovementType,Path_Type* Path, float B
                     CtrlPoints[1].Axes[j] = Path->Center[j] + Path->Radius * cos(DistA*BlockLength/Path->Radius) * Path->StartVersor[j] + Path->Radius * sin(DistA*BlockLength/Path->Radius) * Path->CrossVersor[j];
                 }
                 //find control point #3 along tangent at distance Path->EndEdge.Radius/2
-                float tmpCrossVersor[3];
+                double tmpCrossVersor[3];
                 PointsToVector(Path->Center,CtrlPoints[1].Axes,tmpCrossVersor);
-                float tmpEndVersor[3];
+                double tmpEndVersor[3];
                 CrossProduct(Path->Normal,tmpCrossVersor,tmpEndVersor);
                 Normalize(tmpEndVersor);
                 for (j=0;j<BEZIER_XYZ;j++)
@@ -1004,15 +1006,15 @@ unsigned short ControlPoints(unsigned char MovementType,Path_Type* Path, float B
                 DistA += (1.0/Path->EndEdge.Radius/10.0);
                 if (DistA > 1)
                     DistA = 1;
-                float tmpAxesValues[6];
+                double tmpAxesValues[6];
                 for(j=0;j<AxesNum;j++)
                 {
                     tmpAxesValues[j] = (1-DistA) * Path->StartPointJoint[j] + (DistA) * Path->TargetPointJoint[j];
                 }
 
-                float tmpPathValues[6];
+                double tmpPathValues[6];
                 Transformations(Mechanics,TRF_DIRECT,tmpAxesValues,Path->TargetPointPath,tmpPathValues);
-                float tmpTangent[3];
+                double tmpTangent[3];
                 for (j=0;j<BEZIER_XYZ;j++)
                 {
                     tmpTangent[j] = tmpPathValues[j] - CtrlPoints[0].Axes[j];
@@ -1041,15 +1043,15 @@ unsigned short ControlPoints(unsigned char MovementType,Path_Type* Path, float B
                 DistA -= (1.0/Path->StartEdge.Radius/10.0);
                 if (DistA < 0)
                     DistA = 0;
-                float tmpAxesValues[6];
+                double tmpAxesValues[6];
                 for(j=0;j<AxesNum;j++)
                 {
                     tmpAxesValues[j] = (1-DistA) * Path->StartPointJoint[j] + DistA * Path->TargetPointJoint[j];
                 }
 
-                float tmpPathValues[6];
+                double tmpPathValues[6];
                 Transformations(Mechanics,TRF_DIRECT,tmpAxesValues,Path->StartPointPath,tmpPathValues);
-                float tmpTangent[3];
+                double tmpTangent[3];
                 for (j=0;j<BEZIER_XYZ;j++)
                 {
                     tmpTangent[j] = tmpPathValues[j] - CtrlPoints[1].Axes[j];
@@ -1077,8 +1079,8 @@ unsigned short RoundEdgePoints(MotionPackage_Type* Movement, MotionPackage_Type*
     int k;
     
     //limit radius size to half of the block length
-    Movement->Path.StartEdge.Radius = min(MovementPrev->Round,Movement->BlockLengthIdeal/2.0f);
-    MovementPrev->Path.EndEdge.Radius = min(MovementPrev->Round,MovementPrev->BlockLengthIdeal/2.0f);
+    Movement->Path.StartEdge.Radius = min(MovementPrev->Round,Movement->BlockLengthIdeal/2.0);
+    MovementPrev->Path.EndEdge.Radius = min(MovementPrev->Round,MovementPrev->BlockLengthIdeal/2.0);
     
     //in case of circle also limit radius to half circumference (because BlockLengthIdeal could be many revolutions)
     if (Movement->MovementType == MOVE_CIRCLE)
@@ -1097,7 +1099,7 @@ unsigned short RoundEdgePoints(MotionPackage_Type* Movement, MotionPackage_Type*
         ControlPoints(MovementPrev->MovementType,&MovementPrev->Path,MovementPrev->BlockLengthIdeal,&Movement->Path.StartEdge.CtrlPoint[0],EDGE_END,AxesNum,Mechanics);
         
         //control point 2 (middle point)
-        memcpy(Movement->Path.StartEdge.CtrlPoint[2].Axes, Movement->Path.StartPointPath,24);
+        memcpy(Movement->Path.StartEdge.CtrlPoint[2].Axes, Movement->Path.StartPointPath,sizeof(Movement->Path.StartEdge.CtrlPoint[2].Axes));
 
         //control points 3 and 4 (second half)        
         ControlPoints(Movement->MovementType,&Movement->Path,Movement->BlockLengthIdeal,&Movement->Path.StartEdge.CtrlPoint[3],EDGE_START,AxesNum,Mechanics);
@@ -1117,11 +1119,11 @@ unsigned short RoundEdgePoints(MotionPackage_Type* Movement, MotionPackage_Type*
     {				
         for(k=0;k<5;k++)
         {
-            memcpy(Movement->Path.StartEdge.CtrlPoint[k].Axes,Movement->Path.StartPointPath,24);
+            memcpy(Movement->Path.StartEdge.CtrlPoint[k].Axes,Movement->Path.StartPointPath,sizeof(Movement->Path.StartEdge.CtrlPoint[k].Axes));
         }
         for(k=5;k<7;k++)
         {
-            memcpy(Movement->Path.StartEdge.CtrlPoint[k].Axes,Movement->Path.StartPointJoint,24);
+            memcpy(Movement->Path.StartEdge.CtrlPoint[k].Axes,Movement->Path.StartPointJoint,sizeof(Movement->Path.StartEdge.CtrlPoint[k].Axes));
         }
         Movement->Path.StartEdge.Length = 0;
         Movement->Path.StartEdge.Radius = 0;
@@ -1137,24 +1139,24 @@ unsigned short RoundEdgePoints(MotionPackage_Type* Movement, MotionPackage_Type*
 
 
 
-float PTPLength(Path_Type* Path, unsigned short AxesNum, Mech_Type* Mechanics)
+double PTPLength(Path_Type* Path, unsigned short AxesNum, Mech_Type* Mechanics)
 { //calculates approx. cartesian length of PTP movement (required when adding round edge to PTP)
     
     Point_Type Point[2];
     int i,j;
     int k = 10; //increase number of points for more accuracy
-    float Length = 0;
+    double Length = 0;
 	
-    memcpy(Point[0].Axes,Path->StartPointPath,24);
+    memcpy(Point[0].Axes,Path->StartPointPath,sizeof(Point[0].Axes));
 	
     //evaluate the BezierCurve at different points and then add the distances between them
     for(i=1;i<=k;i++)
     {
-        float tmpAxesValues[6];
+        double tmpAxesValues[6];
         //interpolate PTP to find next point
         for(j=0;j<AxesNum;j++)
         {
-            tmpAxesValues[j] = (1-(float)i/(float)k) * Path->StartPointJoint[j] + (float)i/(float)k * Path->TargetPointJoint[j];
+            tmpAxesValues[j] = (1-(double)i/(double)k) * Path->StartPointJoint[j] + (double)i/(double)k * Path->TargetPointJoint[j];
         }
         
         //transform in path coords. (assuming direct TRF never fail...)					
