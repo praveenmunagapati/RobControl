@@ -17,7 +17,7 @@ typedef struct Edge_Type
 {
     double Radius;
     double Length;
-    Point_Type CtrlPoint[7]; //#5 and #6 are the same as #0 and #4 in joint world
+    Frame_Type CtrlPoint[7]; //#5 and #6 are the same as #0 and #4 in joint world
     double tangAngleStart;
     double tangAngleEnd;
     Quat_Type EdgeQuat; //used only for edges of PTP movements
@@ -28,17 +28,19 @@ typedef struct Spline_Type
 {
     double LengthA;
     double LengthB;
-    Point_Type CtrlPoint[4];
+    Frame_Type CtrlPoint[4];
 } Spline_Type;
 
 typedef struct Path_Type
 {	
 	double StartPointPath[6];
 	double StartPointJoint[6];
+	double StartPointAux[6];
 	double MiddlePointPath[6];
 	double MiddlePointJoint[6];
 	double TargetPointPath[6];
 	double TargetPointJoint[6];
+	double TargetPointAux[6];
 	double Radius;
 	double Center[3];
 	double Length;

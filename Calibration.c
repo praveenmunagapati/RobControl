@@ -2,6 +2,8 @@
 #include "Calibration.h"
 #include "RobControl.h"
 #include "Frame.h"
+#include "PathPlanner.h"
+#include "Misc.h"
 
 double Norm(double a[4], int i)
 { //norm of vector a starting from element i
@@ -11,7 +13,7 @@ double Norm(double a[4], int i)
     return sqrt(norm);
 }
 
-unsigned short ToolCalibration(Point_Type P[5], Coord_Type *Result)
+unsigned short ToolCalibration(Frame_Type P[5], Coord_Type *Result)
 {
 
     unsigned short status = 0;
@@ -120,4 +122,72 @@ unsigned short Triangulate(double A[4][4])
     }
 
     return 0;
+}
+
+
+unsigned short FrameCalibration(Coord_Type P[3], Frame_Type *Result) {
+
+	int i;
+	double Vx[3],Vy[3],Vz[3];
+	double A[3],B[3],C[3];
+	
+	A[0] = P[0].X;
+	A[1] = P[0].Y;
+	A[2] = P[0].Z;
+
+	B[0] = P[1].X;
+	B[1] = P[1].Y;
+	B[2] = P[1].Z;
+
+	C[0] = P[2].X;
+	C[1] = P[2].Y;
+	C[2] = P[2].Z;
+
+	//calculate and normalize Vx
+	PointsToVector(A, B, Vx);
+	if (VectorLength(Vx) < TRF_EPSILON) {
+		return ERR_CALIBRATION;
+	}
+	Normalize(Vx);
+
+	//find origin
+	double Vca[3];
+	PointsToVector(A, C, Vca);
+	if (VectorLength(Vca) < TRF_EPSILON) {
+		return ERR_CALIBRATION;
+	}
+	double d = DotProduct(Vx, Vca);
+	double O[3];
+	for (i=0;i<3;i++) O[i] = A[i] + d*Vx[i];
+	
+	//calculate and normalize Vy
+	PointsToVector(O, C, Vy);
+	if (VectorLength(Vy) < TRF_EPSILON) {
+		return ERR_CALIBRATION;
+	}
+	Normalize(Vy);
+	
+	//calculate and normalize Vz
+	CrossProduct(Vx, Vy, Vz);
+	Normalize(Vz);
+	
+	//compose rotation matrix
+	double RM[3][3];
+	for (i=0;i<3;i++) RM[i][0] = Vx[i];
+	for (i=0;i<3;i++) RM[i][1] = Vy[i];
+	for (i=0;i<3;i++) RM[i][2] = Vz[i];
+	
+	//decompose roation matrix into Euler angles
+	double EulerAngleA, EulerAngleB, EulerAngleC;
+	DecomposeMatrix(RM, 0, 0, 0, &EulerAngleA, &EulerAngleB, &EulerAngleC);
+
+	(*Result).Axes[0] = RoundToEpsilon(O[0]); 
+	(*Result).Axes[1] = RoundToEpsilon(O[1]); 
+	(*Result).Axes[2] = RoundToEpsilon(O[2]); 
+	(*Result).Axes[3] = RoundToEpsilon(EulerAngleA); 
+	(*Result).Axes[4] = RoundToEpsilon(EulerAngleB); 
+	(*Result).Axes[5] = RoundToEpsilon(EulerAngleC); 
+
+	return 0;
+	
 }

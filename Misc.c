@@ -150,8 +150,9 @@ unsigned short CheckConst()
     check *=  (JOG_BASE == 1);
     check *=  (POINT_JOINTS == 0);
     check *=  (JOG_TOOL == 2);
-    check *=  (JOG_GOTO == 2);
-    check *=  (ZONE_DISABLED == 0);
+	check *=  (JOG_GOTO == 2);
+	check *=  (JOG_AUX == 3);
+	check *=  (ZONE_DISABLED == 0);
     check *=  (ZONE_SAFE == 1);
     check *=  (ZONE_FORBIDDEN == 2);
     check *=  (DELTA == 3);
@@ -191,6 +192,7 @@ unsigned short CheckConst()
     check *=  (ERR_WRONG_JOINT_LIMITS == 1014);
     check *=  (ERR_UNITS_SCALING == 1015);
     check *=  (ERR_POINT_TYPE == 1016);
+	check *=  (ERR_WRONG_AUX_LIMITS == 1017);
     check *=  (ERR_TRF_MODE == 1020);
     check *=  (ERR_TRF_MECH == 1021);
     check *=  (ERR_TRF_WORKSPACE == 1022);
@@ -264,6 +266,18 @@ unsigned short CheckConst()
     check *=  (ERR_SPG_LIMIT_VEL == 1206);
     check *=  (ERR_SPG_LIMIT_ACC == 1207);
     check *=  (ERR_SPG_LIMIT_JERK == 1208);
+	check *=  (ERR_LIMIT_A1 == 1220);
+	check *=  (ERR_LIMIT_A2 == 1221);
+	check *=  (ERR_LIMIT_A3 == 1222);
+	check *=  (ERR_LIMIT_A4 == 1223);
+	check *=  (ERR_LIMIT_A5 == 1224);
+	check *=  (ERR_LIMIT_A6 == 1225);
+	check *=  (ERR_LIMIT_VEL_A1 == 1230);
+	check *=  (ERR_LIMIT_VEL_A2 == 1231);
+	check *=  (ERR_LIMIT_VEL_A3 == 1232);
+	check *=  (ERR_LIMIT_VEL_A4 == 1233);
+	check *=  (ERR_LIMIT_VEL_A5 == 1234);
+	check *=  (ERR_LIMIT_VEL_A6 == 1235);
     check *=  (ERR_TRK1 == 1250);
     check *=  (ERR_TRK2 == 1251);
     check *=  (ERR_OPTMOT == 1260);

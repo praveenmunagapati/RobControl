@@ -34,6 +34,7 @@
 #define WS_SUBPOINTS 10
 #define MAX_SUBLEVEL 10
 #define POINT_SAME 2
+#define AUX_MAX 6
 
 #endif
 

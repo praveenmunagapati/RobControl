@@ -50,14 +50,10 @@ double MinPathTime(double P1[6], double P2[6], int Size, struct Robot_Parameter_
 
 	for(k=0;k<Size;k++)
 	{
-		//assume that speed limits are non-zero (must be checked in program!)
-		if (P2[k]>=P1[k])
-		{
-			t = (P2[k]-P1[k])/(Limit[k].VelocityPos);
-		}
-		else
-		{
-			t = (P1[k]-P2[k])/(Limit[k].VelocityNeg);
+		if (P2[k]>=P1[k] && Limit[k].VelocityPos != 0) {
+			t = (P2[k]-P1[k])/Limit[k].VelocityPos;
+		} else if (P2[k]<P1[k] && Limit[k].VelocityNeg != 0){
+			t = (P1[k]-P2[k])/Limit[k].VelocityNeg;
 		}
 		if (t > t_min)
 		{// this axis is slower
@@ -536,7 +532,7 @@ unsigned short MaxMovementDynamics(double d, double a, double j, double v, doubl
 }
 
 
-unsigned short EvaluateBezier (Point_Type P[5], double u, Point_Type *Q,int Size,int Order)
+unsigned short EvaluateBezier (Frame_Type P[5], double u, Frame_Type *Q,int Size,int Order)
 {// input are Bezier control points P0..P4, time u and size of coordinate system (number of robot's axes); output is point Q
 	
 	unsigned char k,i,j;
@@ -545,7 +541,7 @@ unsigned short EvaluateBezier (Point_Type P[5], double u, Point_Type *Q,int Size
 	if((u<0)||(u>1))
 		return 255;
 	
-	Point_Type Point[5];	
+	Frame_Type Point[5];	
 	for(i=0;i<=n;i++) Point[i]=P[i];
 	
 	for (k=1; k<=n; k++)
@@ -563,10 +559,10 @@ unsigned short EvaluateBezier (Point_Type P[5], double u, Point_Type *Q,int Size
 	return 0;
 }
 
-double BezierLength(Point_Type P[5], int Size, int Order)
+double BezierLength(Frame_Type P[5], int Size, int Order)
 {// input are Bezier control points P0..P4 and size of coordinate system (number of robot's axes)
 
-	Point_Type Point[2];
+	Frame_Type Point[2];
 	int i;
 	int k = 10; //increase number of points for more accuracy
 	double Length = 0;
@@ -585,11 +581,11 @@ double BezierLength(Point_Type P[5], int Size, int Order)
 
 }
 
-double BezierLengthHalf1(Point_Type P[5], int Size, int Order)
+double BezierLengthHalf1(Frame_Type P[5], int Size, int Order)
 {// input are Bezier control points P0..P4 and size of coordinate system (number of robot's axes)
  // calculates only length of first half P0..P2
 	
-	Point_Type Point[2];
+	Frame_Type Point[2];
 	int i;
 	int k = 10; //increase number of points for more accuracy
 	double Length = 0;
@@ -608,11 +604,11 @@ double BezierLengthHalf1(Point_Type P[5], int Size, int Order)
 
 }
 
-double BezierLengthHalf2(Point_Type P[5], int Size, int Order)
+double BezierLengthHalf2(Frame_Type P[5], int Size, int Order)
 {// input are Bezier control points P0..P4 and size of coordinate system (number of robot's axes)
 	// calculates only length of second half P2..P4
 
-	Point_Type Point[2];
+	Frame_Type Point[2];
 	int i;
 	int k = 10; //increase number of points for more accuracy
 	double Length = 0;
@@ -828,7 +824,7 @@ unsigned short WorkspaceMonitor(unsigned char MovementType, Path_Type* Path, dou
         if (!Workspace[k].Type)
             continue;
 
-        Point_Type subPoints[WS_SUBPOINTS];
+        Frame_Type subPoints[WS_SUBPOINTS];
 
         memcpy(subPoints[0].Axes,Path->StartPointPath,sizeof(subPoints[0].Axes));
                                     
@@ -851,7 +847,7 @@ unsigned short WorkspaceMonitor(unsigned char MovementType, Path_Type* Path, dou
             for (sub=1;sub<WS_SUBPOINTS;sub++)
             {
 
-                Point_Type tmpTargetJ, tmpTargetX;
+                Frame_Type tmpTargetJ, tmpTargetX;
                                             
                 //interpolate movement at BlockLength/(WS_SUBPOINTS-1)*sub
                 double u = sub * subInc;
@@ -913,7 +909,7 @@ unsigned short WorkspaceMonitor(unsigned char MovementType, Path_Type* Path, dou
 
 
 //local help function
-unsigned short ControlPoints(unsigned char MovementType,Path_Type* Path, double BlockLength, Point_Type CtrlPoints[2], unsigned char Edge, unsigned short AxesNum, Mech_Type* Mechanics)
+unsigned short ControlPoints(unsigned char MovementType,Path_Type* Path, double BlockLength, Frame_Type CtrlPoints[2], unsigned char Edge, unsigned short AxesNum, Mech_Type* Mechanics)
 {//calculate two control points of a round edge
         
     int j;
@@ -1132,7 +1128,7 @@ unsigned short RoundEdgePoints(MotionPackage_Type* Movement, MotionPackage_Type*
     }
 				
     //copy points to previous block
-    memcpy(MovementPrev->Path.EndEdge.CtrlPoint,Movement->Path.StartEdge.CtrlPoint,sizeof(Point_Type)*7);
+    memcpy(MovementPrev->Path.EndEdge.CtrlPoint,Movement->Path.StartEdge.CtrlPoint,sizeof(Frame_Type)*7);
     
     return 0;
 }
@@ -1142,7 +1138,7 @@ unsigned short RoundEdgePoints(MotionPackage_Type* Movement, MotionPackage_Type*
 double PTPLength(Path_Type* Path, unsigned short AxesNum, Mech_Type* Mechanics)
 { //calculates approx. cartesian length of PTP movement (required when adding round edge to PTP)
     
-    Point_Type Point[2];
+    Frame_Type Point[2];
     int i,j;
     int k = 10; //increase number of points for more accuracy
     double Length = 0;

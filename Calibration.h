@@ -7,8 +7,10 @@
 
 /* Declaration of calibration functions  */
 
-unsigned short ToolCalibration(Point_Type P[5], Coord_Type *Result);
+unsigned short ToolCalibration(Frame_Type P[5], Coord_Type *Result);
 unsigned short Triangulate(double A[4][4]);
+
+unsigned short FrameCalibration(Coord_Type P[3], Frame_Type *Result);
 
 #endif
 

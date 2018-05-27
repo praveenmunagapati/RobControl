@@ -7,6 +7,18 @@
 #define ERR_OPTMOT 1260
 #define ERR_TRK2 1251
 #define ERR_TRK1 1250
+#define ERR_LIMIT_VEL_A6 1235
+#define ERR_LIMIT_VEL_A5 1234
+#define ERR_LIMIT_VEL_A4 1233
+#define ERR_LIMIT_VEL_A3 1232
+#define ERR_LIMIT_VEL_A2 1231
+#define ERR_LIMIT_VEL_A1 1230
+#define ERR_LIMIT_A6 1225
+#define ERR_LIMIT_A5 1224
+#define ERR_LIMIT_A4 1223
+#define ERR_LIMIT_A3 1222
+#define ERR_LIMIT_A2 1221
+#define ERR_LIMIT_A1 1220
 #define ERR_SPG_LIMIT_JERK 1208
 #define ERR_SPG_LIMIT_ACC 1207
 #define ERR_SPG_LIMIT_VEL 1206
@@ -80,6 +92,7 @@
 #define ERR_TRF_WORKSPACE 1022
 #define ERR_TRF_MECH 1021
 #define ERR_TRF_MODE 1020
+#define ERR_WRONG_AUX_LIMITS 1017
 #define ERR_POINT_TYPE 1016
 #define ERR_UNITS_SCALING 1015
 #define ERR_WRONG_JOINT_LIMITS 1014
@@ -113,6 +126,7 @@
 #define TRF_POSE_CONCAVE 2
 #define ZONE_FORBIDDEN 2
 #define JOG_GOTO 2
+#define JOG_AUX 3
 #define JOG_TOOL 2
 #define JOG_BASE 1
 #define TRF_POSE_LEFT 1
@@ -148,7 +162,7 @@ typedef struct Robot_Command_Type
 	unsigned short Halt;
 	unsigned short Continue;
 	unsigned short JogAxis;
-	unsigned short SetJoints;
+	unsigned short Reference;
 	unsigned short Reset;
 } Robot_Command_Type;
 
@@ -180,11 +194,16 @@ typedef struct Robot_Parameter_Workspace_Type
 	double PositionMax[3];
 } Robot_Parameter_Workspace_Type;
 
-typedef struct Robot_Parameter_UnitsRatio_Type
+typedef struct UnitsRatio_Type
 {	unsigned long MotorUnits;
 	unsigned long AxisUnits;
 	signed char Direction;
 	signed long HomeOffset;
+} UnitsRatio_Type;
+
+typedef struct Robot_Parameter_UnitsRatio_Type
+{	struct UnitsRatio_Type Joints[6];
+	struct UnitsRatio_Type Aux[6];
 } Robot_Parameter_UnitsRatio_Type;
 
 typedef struct Coord_Type
@@ -211,21 +230,40 @@ typedef struct Mech_Type
 	struct UserTrf_Type UserTrf;
 } Mech_Type;
 
-typedef struct Point_Type
-{	double Axes[6];
-	unsigned char Mode;
-} Point_Type;
+typedef struct Frame_Type {
+	double Axes[6];
+} Frame_Type;
 
 typedef struct Calibration_Tool_Type
-{	struct Point_Type Points[5];
+{	struct Frame_Type Points[5];
 	unsigned short Start;
 	unsigned short Status;
 	struct Coord_Type Result;
 } Calibration_Tool_Type;
 
+typedef struct Calibration_Frame_Type
+{	struct Coord_Type Points[3];
+	unsigned short Start;
+	unsigned short Status;
+	struct Frame_Type Result;
+} Calibration_Frame_Type;
+
 typedef struct Robot_Parameter_Calibration_Type
 {	struct Calibration_Tool_Type Tool;
+	struct Calibration_Frame_Type Frame;
 } Robot_Parameter_Calibration_Type;
+
+typedef struct DrivesInterface_Type
+{	signed long Joints[6];
+	signed long Aux[6];
+} DrivesInterface_Type;
+
+typedef struct Point_Type
+{	double Axes[6];
+	unsigned char Mode;
+	double Aux[6];
+	unsigned char ModeAux;
+} Point_Type;
 
 typedef struct Robot_Jog_Type
 {	unsigned char Mode;
@@ -242,19 +280,20 @@ typedef struct Robot_Parameter_Conveyor_Type
 typedef struct Robot_Parameter_Type
 {	struct Robot_Parameter_JointLimits_Type JointLimits[6];
 	struct Robot_Parameter_Path_Type PathLimits;
+	struct Robot_Parameter_JointLimits_Type AuxLimits[6];
 	struct Robot_Parameter_Workspace_Type Workspace[11];
-	struct Robot_Parameter_UnitsRatio_Type UnitsRatio[6];
+	struct Robot_Parameter_UnitsRatio_Type UnitsRatio;
 	struct Mech_Type Mechanics;
 	struct Robot_Parameter_Calibration_Type Calibration;
 	double Override;
 	unsigned char* Program;
 	char Blocks[101][101];
-	signed long ActFromDrives[6];
+	struct DrivesInterface_Type ActFromDrives;
 	unsigned long StartLine;
 	unsigned long StopLine;
 	struct Point_Type Points[201];
-	struct Point_Type Tool[21];
-	struct Point_Type Frame[21];
+	struct Frame_Type Tool[21];
+	struct Frame_Type Frame[21];
 	struct Robot_Jog_Type Jog;
 	struct Robot_Parameter_Conveyor_Type Conveyor[2];
 	double PathCorrection[6];
@@ -275,7 +314,8 @@ typedef struct Robot_Monitor_Type
 	double PathPosition[6];
 	double JointPosition[6];
 	double JointSpeed[6];
-	signed long SetToDrive[6];
+	double AuxPosition[6];
+	struct DrivesInterface_Type SetToDrive;
 	double MountBasePosition[6];
 	double ToolBasePosition[6];
 	unsigned long LineNumber;
