@@ -36,14 +36,6 @@ unsigned short RobotControl(unsigned long Robots, unsigned char RobotsNumber)
 	
     char line[MAX_BLOCK_SIZE];	
 	
-    /*
-	//EVALUATION VERSION -> TIME LIMITED!!!
-	if (EvaluationTime > 3600000)
-	{// evaluation time run off -> must restart machine
-		return ERR_ROBOT_LICENSE;
-	}
-	*/
-
     if (!CheckConstDone) {
         CheckConstDone = CheckConst();
         return ERR_CHECKSUM;
@@ -60,12 +52,6 @@ unsigned short RobotControl(unsigned long Robots, unsigned char RobotsNumber)
         
         gRobot[i] = (Robot_Type*) (Robots + sizeof(Robot_Type)*i);
         
-        //LICENSE CHECK!
-        unsigned long* p1 = 0x5e0;
-        unsigned long* p2 = 0x5e4;
-        unsigned long License = (~(*p1)^(*p2))^(gRobot[i]->Parameters.License);
-        if (License) return ERR_ROBOT_LICENSE;
-
         /* prevent user from changing old monitor values (except for M-functions, DI_ and TrackSynch) */
         memcpy(&OldMonitor[i].M,&gRobot[i]->Monitor.M,sizeof(OldMonitor[i].M));
         memcpy(&OldMonitor[i].DI_,&gRobot[i]->Monitor.DI_,sizeof(OldMonitor[i].DI_));
@@ -4615,8 +4601,6 @@ unsigned short RobotControl(unsigned long Robots, unsigned char RobotsNumber)
             } else {
                 gRobot[i]->Monitor.SetToDrive.Joints[k] = 0;
             }
-            //add License check (should be zero in normal cases)
-            gRobot[i]->Monitor.SetToDrive.Joints[k] += License;
         }
 		for (k=0;k<AUX_MAX;k++) {
 			if (gRobot[i]->Parameters.UnitsRatio.Aux[k].AxisUnits != 0) {
@@ -4624,8 +4608,6 @@ unsigned short RobotControl(unsigned long Robots, unsigned char RobotsNumber)
 				} else {
 				gRobot[i]->Monitor.SetToDrive.Aux[k] = 0;
 			}
-			//add License check (should be zero in normal cases)
-			gRobot[i]->Monitor.SetToDrive.Aux[k] += License;
 		}
 
         //reset AxesMoved flag
