@@ -17,7 +17,6 @@
 #define min(a,b) ( (a<b)?a:b )
 #define max(a,b) ( (a>b)?a:b )
 
-
 unsigned short RobotControl(unsigned long Robots, unsigned char RobotsNumber)
 {
     Robot_Type *gRobot[RobotsNumber];
@@ -342,26 +341,46 @@ unsigned short RobotControl(unsigned long Robots, unsigned char RobotsNumber)
                         fRSVG[i].StartPosition = gRobot[i]->Monitor.JointPosition[Jog[i].AxisIndex];
 						
                         if (Jog[i].Direction == JOG_POSITIVE) {
-                            fRSVG[i].TargetPosition = gRobot[i]->Parameters.JointLimits[Jog[i].AxisIndex].PositionPos;
+													//stop at positive limit if set
+													if (gRobot[i]->Parameters.JointLimits[Jog[i].AxisIndex].PositionPos > gRobot[i]->Parameters.JointLimits[Jog[i].AxisIndex].PositionNeg) {
+														fRSVG[i].TargetPosition = gRobot[i]->Parameters.JointLimits[Jog[i].AxisIndex].PositionPos;
+													}
+													else {
+														fRSVG[i].DynamicLimits.PositionPos = 1e37;
+														fRSVG[i].TargetPosition = 1e30;
+													}
                             fRSVG[i].DynamicLimits.PositionNeg = -1e37; //ignore negative limit when jogging in positive direction
-                        } else if (Jog[i].Direction == JOG_NEGATIVE) {
-                            fRSVG[i].TargetPosition = gRobot[i]->Parameters.JointLimits[Jog[i].AxisIndex].PositionNeg;
-                            fRSVG[i].DynamicLimits.PositionPos = 1e37; //ignore positive limit when jogging in negative direction
-                        } else if (Jog[i].Direction == JOG_GOTO) {
-                            //check for goto limits
-                            if ((Jog[i].GotoPos > gRobot[i]->Parameters.JointLimits[Jog[i].AxisIndex].PositionPos)||(Jog[i].GotoPos < gRobot[i]->Parameters.JointLimits[Jog[i].AxisIndex].PositionNeg)) {					
-                                gRobot[i]->Monitor.ActiveError = ERR_JOG_GOTOPOS;
-                                gRobot[i]->Monitor.ErrorLine = 0;
-                            } else if (Jog[i].GotoPos >= gRobot[i]->Monitor.JointPosition[Jog[i].AxisIndex]) {
-                                // move in positive direction
-                                fRSVG[i].TargetPosition = Jog[i].GotoPos;
-                                fRSVG[i].DynamicLimits.PositionNeg = -1e37; //ignore negative limit when jogging in positive direction								
-                            } else {
-                                // move in negative direction
-                                fRSVG[i].TargetPosition = Jog[i].GotoPos;
-                                fRSVG[i].DynamicLimits.PositionPos = 1e37; //ignore positive limit when jogging in negative direction
-                            }
                         }
+												else if (Jog[i].Direction == JOG_NEGATIVE) {
+													//stop at negative limit if set
+													if (gRobot[i]->Parameters.JointLimits[Jog[i].AxisIndex].PositionPos > gRobot[i]->Parameters.JointLimits[Jog[i].AxisIndex].PositionNeg) {
+														fRSVG[i].TargetPosition = gRobot[i]->Parameters.JointLimits[Jog[i].AxisIndex].PositionNeg;
+													}
+													else {
+														fRSVG[i].DynamicLimits.PositionNeg = -1e37;
+														fRSVG[i].TargetPosition = -1e30;
+													}
+													fRSVG[i].DynamicLimits.PositionPos = 1e37;
+												}
+												else if (Jog[i].Direction == JOG_GOTO) {
+													//check for goto limits - only if set (max>min)
+													if ((Jog[i].GotoPos > gRobot[i]->Parameters.JointLimits[Jog[i].AxisIndex].PositionPos || Jog[i].GotoPos < gRobot[i]->Parameters.JointLimits[Jog[i].AxisIndex].PositionNeg) && (gRobot[i]->Parameters.JointLimits[Jog[i].AxisIndex].PositionPos > gRobot[i]->Parameters.JointLimits[Jog[i].AxisIndex].PositionNeg)) {					
+														gRobot[i]->Monitor.ActiveError = ERR_JOG_GOTOPOS;
+														gRobot[i]->Monitor.ErrorLine = 0;
+													}
+													else if (Jog[i].GotoPos >= gRobot[i]->Monitor.JointPosition[Jog[i].AxisIndex]) {
+														// move in positive direction
+														fRSVG[i].TargetPosition = Jog[i].GotoPos;
+														fRSVG[i].DynamicLimits.PositionPos = 1e37;					
+														fRSVG[i].DynamicLimits.PositionNeg = -1e37;					
+													}
+													else {
+														// move in negative direction
+														fRSVG[i].TargetPosition = Jog[i].GotoPos;
+														fRSVG[i].DynamicLimits.PositionPos = 1e37;					
+														fRSVG[i].DynamicLimits.PositionNeg = -1e37;					
+													}
+												}
                     }// end JOG_JOINTS
 
                     else if (Jog[i].Mode == JOG_BASE) {
@@ -439,24 +458,40 @@ unsigned short RobotControl(unsigned long Robots, unsigned char RobotsNumber)
 						fRSVG[i].StartPosition = gRobot[i]->Monitor.AuxPosition[Jog[i].AxisIndex];
 						
 						if (Jog[i].Direction == JOG_POSITIVE) {
-							fRSVG[i].TargetPosition = gRobot[i]->Parameters.AuxLimits[Jog[i].AxisIndex].PositionPos;
-							fRSVG[i].DynamicLimits.PositionNeg = -1e37; //ignore negative limit when jogging in positive direction
+							//stop at positive limit if set
+							if (gRobot[i]->Parameters.AuxLimits[Jog[i].AxisIndex].PositionPos > gRobot[i]->Parameters.AuxLimits[Jog[i].AxisIndex].PositionNeg) {
+								fRSVG[i].TargetPosition = gRobot[i]->Parameters.AuxLimits[Jog[i].AxisIndex].PositionPos;
+							}
+							else {
+								fRSVG[i].DynamicLimits.PositionPos = 1e37;
+								fRSVG[i].TargetPosition = 1e30;
+							}
+							fRSVG[i].DynamicLimits.PositionNeg = -1e37;
 						} else if (Jog[i].Direction == JOG_NEGATIVE) {
-							fRSVG[i].TargetPosition = gRobot[i]->Parameters.AuxLimits[Jog[i].AxisIndex].PositionNeg;
-							fRSVG[i].DynamicLimits.PositionPos = 1e37; //ignore positive limit when jogging in negative direction
+							//stop at negative limit if set
+							if (gRobot[i]->Parameters.AuxLimits[Jog[i].AxisIndex].PositionPos > gRobot[i]->Parameters.AuxLimits[Jog[i].AxisIndex].PositionNeg) {
+								fRSVG[i].TargetPosition = gRobot[i]->Parameters.AuxLimits[Jog[i].AxisIndex].PositionNeg;
+							}
+							else {
+								fRSVG[i].DynamicLimits.PositionNeg = -1e37;
+								fRSVG[i].TargetPosition = -1e30;
+							}
+							fRSVG[i].DynamicLimits.PositionPos = 1e37;
 						} else if (Jog[i].Direction == JOG_GOTO) {										
 							//check for goto limits
-							if ((Jog[i].GotoPos > gRobot[i]->Parameters.AuxLimits[Jog[i].AxisIndex].PositionPos)||(Jog[i].GotoPos < gRobot[i]->Parameters.AuxLimits[Jog[i].AxisIndex].PositionNeg)) {					
+							if ((Jog[i].GotoPos > gRobot[i]->Parameters.AuxLimits[Jog[i].AxisIndex].PositionPos || Jog[i].GotoPos < gRobot[i]->Parameters.AuxLimits[Jog[i].AxisIndex].PositionNeg) && (gRobot[i]->Parameters.AuxLimits[Jog[i].AxisIndex].PositionPos > gRobot[i]->Parameters.AuxLimits[Jog[i].AxisIndex].PositionNeg)) {					
 								gRobot[i]->Monitor.ActiveError = ERR_JOG_GOTOPOS;
 								gRobot[i]->Monitor.ErrorLine = 0;
 							} else if (Jog[i].GotoPos >= gRobot[i]->Monitor.AuxPosition[Jog[i].AxisIndex]) {
 								// move in positive direction
 								fRSVG[i].TargetPosition = Jog[i].GotoPos;
-								fRSVG[i].DynamicLimits.PositionNeg = -1e37; //ignore negative limit when jogging in positive direction								
+								fRSVG[i].DynamicLimits.PositionPos = 1e37;
+								fRSVG[i].DynamicLimits.PositionNeg = -1e37;
 							} else {
 								// move in negative direction
 								fRSVG[i].TargetPosition = Jog[i].GotoPos;
-								fRSVG[i].DynamicLimits.PositionPos = 1e37; //ignore positive limit when jogging in negative direction
+								fRSVG[i].DynamicLimits.PositionNeg = -1e37;
+								fRSVG[i].DynamicLimits.PositionPos = 1e37;
 							}
 						}
 					}// end JOG_AUX
@@ -4442,8 +4477,8 @@ unsigned short RobotControl(unsigned long Robots, unsigned char RobotsNumber)
             Trf_Status = Transformations(&gRobot[i]->Parameters.Mechanics,TRF_INVERSE,OldAxesValues,gRobot[i]->Monitor.MountBasePosition,gRobot[i]->Monitor.JointPosition);
             if (Trf_Status == STATUS_OK) {//make sure joints are within limits
                 for (k=0;k<gRobot[i]->Monitor.AxesNum;k++) {					
-                    //check for joint axes limits
-                    if ((gRobot[i]->Monitor.JointPosition[k] > gRobot[i]->Parameters.JointLimits[k].PositionPos)||(gRobot[i]->Monitor.JointPosition[k] < gRobot[i]->Parameters.JointLimits[k].PositionNeg)) {
+                    //check for joint axes limits - only if these are set (max>min)
+										if (((gRobot[i]->Monitor.JointPosition[k] > gRobot[i]->Parameters.JointLimits[k].PositionPos)||(gRobot[i]->Monitor.JointPosition[k] < gRobot[i]->Parameters.JointLimits[k].PositionNeg))&&(gRobot[i]->Parameters.JointLimits[k].PositionPos > gRobot[i]->Parameters.JointLimits[k].PositionNeg)) {	
                         WorkspaceFlag = 1;
                     }
                 }							
@@ -4486,8 +4521,8 @@ unsigned short RobotControl(unsigned long Robots, unsigned char RobotsNumber)
             Trf_Status = Transformations(&gRobot[i]->Parameters.Mechanics,TRF_INVERSE,OldAxesValues,gRobot[i]->Monitor.MountBasePosition,gRobot[i]->Monitor.JointPosition);
             if (Trf_Status == STATUS_OK) {//make sure joints are within limits
                 for (k=0;k<gRobot[i]->Monitor.AxesNum;k++) {					
-                    //check for joint axes limits
-                    if ((gRobot[i]->Monitor.JointPosition[k] > gRobot[i]->Parameters.JointLimits[k].PositionPos)||(gRobot[i]->Monitor.JointPosition[k] < gRobot[i]->Parameters.JointLimits[k].PositionNeg)) {
+                    //check for joint axes limits - only if these are set (max>min)
+										if (((gRobot[i]->Monitor.JointPosition[k] > gRobot[i]->Parameters.JointLimits[k].PositionPos)||(gRobot[i]->Monitor.JointPosition[k] < gRobot[i]->Parameters.JointLimits[k].PositionNeg))&&(gRobot[i]->Parameters.JointLimits[k].PositionPos > gRobot[i]->Parameters.JointLimits[k].PositionNeg)) {	
                         WorkspaceFlag = 1;
                     }
                 }							
